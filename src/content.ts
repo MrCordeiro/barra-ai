@@ -11,7 +11,12 @@
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
 
+const AI_COMMAND = '/ai ';
 const API_KEY: string = process.env.OPENAI_API_KEY as string;
+export const USE_MOCK: boolean =
+  process.env.USE_MOCK && /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK)
+    ? true
+    : false;
 
 interface GPTResponse {
   id: string;
@@ -38,7 +43,26 @@ function parseAnswer(data: GPTResponse): string {
   return answer;
 }
 
-function fetchGptResponse(prompt: string): Promise<string> {
+/**
+ * A dummy function to mock the fetchGptResponse function without making an
+ * actual API call
+ *
+ * @param prompt The prompt to be used for the mock response
+ */
+async function fetchGptMockResponse(): Promise<string> {
+  return "🚀 Exciting news for all my fellow content creators and writers! \
+  Just discovered an amazing extension that lets you effortlessly generate \
+  GPT-powered texts with just a simple 'ai' command. Say goodbye to writer's \
+  block and hello to endless possibilities! 📝💡 \
+  #AI #ContentCreation #Innovation";
+}
+
+/**
+ * Fetches the GPT response from the OpenAI API
+ *
+ * @param prompt The prompt to be used for the GPT response
+ */
+async function fetchGptResponse(prompt: string): Promise<string> {
   const requestOptions = {
     method: 'POST',
     headers: {
@@ -56,13 +80,21 @@ function fetchGptResponse(prompt: string): Promise<string> {
     }),
   };
 
-  return fetch('https://api.openai.com/v1/chat/completions', requestOptions)
-    .then((response) => response.json())
-    .then((data) => {
-      console.log(data.choices);
-      return data;
-    })
-    .then((data) => parseAnswer(data));
+  const response = await fetch(
+    'https://api.openai.com/v1/chat/completions',
+    requestOptions
+  );
+  const data = await response.json();
+  const data_1 = data;
+  return parseAnswer(data_1);
+}
+
+export async function fetchAIResponse(prompt: string): Promise<string> {
+  if (USE_MOCK) {
+    return fetchGptMockResponse();
+  } else {
+    return fetchGptResponse(prompt);
+  }
 }
 
 function handleKeyDown(event: KeyboardEvent): void {
@@ -70,21 +102,20 @@ function handleKeyDown(event: KeyboardEvent): void {
     const textArea = document.activeElement! as HTMLTextAreaElement;
 
     // Extract all the text inside the p tags that may or may not exist,
-    // withouth the p tags using regex groups
+    // without the p tags using regex groups
     const pTags = textArea.innerHTML.match(/<p>(.*?)<\/p>/g);
     const pTagText = pTags
       ? pTags.map((pTag) => pTag.replace(/<\/?p>/g, ''))
       : [];
     const value = pTagText.join(' ');
 
-    const AI_COMMAND = '/ai';
-    if (value && value.includes(AI_COMMAND)) {
+    if (value && value.startsWith(AI_COMMAND)) {
       const prePrompt = 'Write a LinkedIn post about ';
       const postPrompt =
         '[Return only the main response. Write in an approcheable, yet witty manner.]';
       const prompt = `${prePrompt} ${value.replace('/ai', '')} ${postPrompt}`;
 
-      fetchGptResponse(prompt).then((generatedText) => {
+      fetchAIResponse(prompt).then((generatedText) => {
         textArea.innerHTML = generatedText;
         console.log(generatedText);
       });

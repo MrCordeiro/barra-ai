@@ -60,16 +60,14 @@ const common = {
     extensions: ['.ts', '.js'],
   },
   plugins: [
-    // Read environment variables from .env file
-    //! Remove before using in production
     new DefinePlugin({
+      // Read environment variables from .env file
+      //! Remove before using in production
       'process.env': JSON.stringify(dotenv.config().parsed),
     }),
     // Copy static assets from `public` folder to `build` folder
     new CopyWebpackPlugin({
-      patterns: [
-        { from: '**/*', context: 'public' },
-      ],
+      patterns: [{ from: '**/*', context: 'public' }],
     }),
     // Extract CSS into separate files
     new MiniCssExtractPlugin({

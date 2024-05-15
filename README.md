@@ -21,6 +21,7 @@ My Chrome Extension
 
 ## Todos
 
+- [ ] Fix response rendering
 - [ ] Test removing permissions
 - [ ] Write tests
 - [ ] Handle invalid_api_key error
