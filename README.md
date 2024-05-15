@@ -19,6 +19,14 @@ My Chrome Extension
 4. Click on the Load unpacked extension button
 5. Select the folder `barra-ai/build`
 
+## Todos
+
+- [ ] Test removing permissions
+- [ ] Write tests
+- [ ] Handle invalid_api_key error
+- [ ] Prevent usage on unsafe networks
+- [ ] Remove hard coded keys
+
 ## Contribution
 
 Suggestions and pull requests are welcomed!.

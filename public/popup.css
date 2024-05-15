@@ -14,6 +14,12 @@ html {
   color: #222;
 }
 
+@media (prefers-color-scheme: dark) {
+  html {
+    color: #d4d8e6;
+  }
+}
+
 body {
   width: 350px;
   height: 300px;

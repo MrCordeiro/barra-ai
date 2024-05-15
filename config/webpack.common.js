@@ -68,10 +68,7 @@ const common = {
     // Copy static assets from `public` folder to `build` folder
     new CopyWebpackPlugin({
       patterns: [
-        {
-          from: '**/*',
-          context: 'public',
-        },
+        { from: '**/*', context: 'public' },
       ],
     }),
     // Extract CSS into separate files
