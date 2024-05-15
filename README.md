@@ -24,6 +24,7 @@ My Chrome Extension
 - [ ] Test removing permissions
 - [ ] Write tests
 - [ ] Handle invalid_api_key error
+- [ ] Handle insufficient_quota error
 - [ ] Prevent usage on unsafe networks
 - [ ] Remove hard coded keys
 

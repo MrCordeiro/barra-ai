@@ -46,7 +46,7 @@ function fetchGptResponse(prompt: string): Promise<string> {
       Authorization: `Bearer ${API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-3.5-turbo-0125',
       messages: [
         { role: 'system', content: 'You are a savvy social media expert.' },
         { role: 'user', content: prompt },
