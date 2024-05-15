@@ -1,0 +1,20 @@
+# IDE
+.idea
+.vscode
+
+# dependencies
+/node_modules
+
+# production
+/build
+
+# misc
+.DS_Store
+
+npm-debug.log*
+
+# packed files
+/release
+
+# local env files
+.env
