@@ -1,7 +1,7 @@
 {
-  "name": "barrasaur",
+  "name": "barra-ai",
   "version": "0.1.0",
-  "description": "My Chrome Extension",
+  "description": "Type '/ai' let Barrasaur fetch GPT to help you",
   "private": true,
   "scripts": {
     "watch": "webpack --mode=development --watch --config config/webpack.config.js",
