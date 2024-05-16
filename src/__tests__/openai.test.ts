@@ -15,7 +15,7 @@ describe('Environment Variable USE_MOCK', () => {
 
       // Reset module registry to re-import with new env variable
       jest.resetModules();
-      const { USE_MOCK: USE_MOCK } = require('../content');
+      const { USE_MOCK: USE_MOCK } = require('../openai');
       expect(USE_MOCK).toBe(expected);
     });
   });
@@ -36,7 +36,7 @@ describe('fetchAIResponse', () => {
   block and hello to endless possibilities! 📝💡 \
   #AI #ContentCreation #Innovation";
 
-    const { fetchAIResponse } = require('../content');
+    const { fetchAIResponse } = require('../openai');
     const response = await fetchAIResponse(prompt);
 
     expect(response).toBe(expectedResponse);
