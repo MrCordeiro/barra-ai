@@ -1,6 +1,7 @@
 'use strict';
 
 import { fetchAIResponse } from './openai';
+import { extractTextFromElement, setTextToElement } from './textExtractor';
 
 // Content script file will run in the context of web page.
 // With content script you can manipulate the web pages using
@@ -15,29 +16,35 @@ import { fetchAIResponse } from './openai';
 
 const AI_COMMAND = '/ai ';
 function handleKeyDown(event: KeyboardEvent): void {
-  if (event.key === 'Tab') {
-    const textArea = document.activeElement! as HTMLTextAreaElement;
-
-    // Extract all the text inside the p tags that may or may not exist,
-    // without the p tags using regex groups
-    const pTags = textArea.innerHTML.match(/<p>(.*?)<\/p>/g);
-    const pTagText = pTags
-      ? pTags.map((pTag) => pTag.replace(/<\/?p>/g, ''))
-      : [];
-    const value = pTagText.join(' ');
-
-    if (value && value.startsWith(AI_COMMAND)) {
-      const prePrompt = 'Write a LinkedIn post about ';
-      const postPrompt =
-        '[Return only the main response. Write in an approcheable, yet witty manner.]';
-      const prompt = `${prePrompt} ${value.replace('/ai', '')} ${postPrompt}`;
-
-      fetchAIResponse(prompt).then((generatedText) => {
-        textArea.innerHTML = generatedText;
-        console.log(generatedText);
-      });
-    }
+  if (event.key !== 'Tab') {
+    return;
   }
+  const activeElement = document.activeElement as HTMLElement;
+  if (!activeElement || !isEditable(activeElement)) {
+    return;
+  }
+  event.preventDefault();
+  const value = extractTextFromElement(activeElement);
+
+  if (value && value.startsWith(AI_COMMAND)) {
+    const prePrompt = 'Write a LinkedIn post about ';
+    const postPrompt =
+      '[Return only the main response. Write in an approcheable, yet witty manner.]';
+    const prompt = `${prePrompt} ${value.replace('/ai', '')} ${postPrompt}`;
+
+    fetchAIResponse(prompt).then((generatedText) => {
+      setTextToElement(generatedText, activeElement);
+      console.log(generatedText);
+    });
+  }
+}
+
+function isEditable(element: HTMLElement): boolean {
+  return (
+    element.tagName === 'INPUT' ||
+    element.tagName === 'TEXTAREA' ||
+    element.isContentEditable
+  );
 }
 
 document.addEventListener('keydown', handleKeyDown);
