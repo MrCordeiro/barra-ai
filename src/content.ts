@@ -1,8 +1,4 @@
 'use strict';
-
-import { fetchAIResponse } from './openai';
-import { extractTextFromElement, setTextToElement } from './textExtractor';
-
 // Content script file will run in the context of web page.
 // With content script you can manipulate the web pages using
 // Document Object Model (DOM).
@@ -14,37 +10,38 @@ import { extractTextFromElement, setTextToElement } from './textExtractor';
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
 
+import { fetchAIResponse } from './openai';
+import { getEditableElement } from './editableElements';
+
 const AI_COMMAND = '/ai ';
+
 function handleKeyDown(event: KeyboardEvent): void {
-  if (event.key !== 'Tab') {
-    return;
-  }
+  const activationCmd = event.key === 'Tab';
+  if (!activationCmd) return;
+
   const activeElement = document.activeElement as HTMLElement;
-  if (!activeElement || !isEditable(activeElement)) {
-    return;
-  }
-  event.preventDefault();
-  const value = extractTextFromElement(activeElement);
+  if (!activeElement) return;
 
-  if (value && value.startsWith(AI_COMMAND)) {
-    const prePrompt = 'Write a LinkedIn post about ';
-    const postPrompt =
-      '[Return only the main response. Write in an approcheable, yet witty manner.]';
-    const prompt = `${prePrompt} ${value.replace('/ai', '')} ${postPrompt}`;
+  const element = getEditableElement(activeElement);
+  if (!element) return;
 
-    fetchAIResponse(prompt).then((generatedText) => {
-      setTextToElement(generatedText, activeElement);
-      console.log(generatedText);
-    });
-  }
+  const text = element.extractText();
+  if (!text || !text.startsWith(AI_COMMAND)) return;
+
+  const prompt = createPrompt(text);
+
+  fetchAIResponse(prompt).then((response) => {
+    element.setText(response);
+    console.log(response);
+  });
 }
 
-function isEditable(element: HTMLElement): boolean {
-  return (
-    element.tagName === 'INPUT' ||
-    element.tagName === 'TEXTAREA' ||
-    element.isContentEditable
-  );
+function createPrompt(text: string) {
+  const prePrompt = 'Write a LinkedIn post about ';
+  const postPrompt =
+    '[Return only the main response. Write in an approcheable, yet witty manner.]';
+  const prompt = `${prePrompt} ${text.replace(AI_COMMAND, '')} ${postPrompt}`;
+  return prompt;
 }
 
-document.addEventListener('keydown', handleKeyDown);
+document.addEventListener('keydown', handleKeyDown, true);

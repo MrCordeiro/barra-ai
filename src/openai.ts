@@ -54,9 +54,14 @@ export async function fetchGptResponse(prompt: string): Promise<string> {
     requestOptions
   );
   const data = await response.json();
-  const data_1 = data;
-  return parseAnswer(data_1);
+  return parseAnswer(data);
 }
+
+/**
+ * Parses the GPT response to extract the answer
+ *
+ * @param data The GPT response data
+ */
 function parseAnswer(data: GPTResponse): string {
   const answer = data.choices[0].message.content;
   return answer;
@@ -86,6 +91,7 @@ export async function fetchAIResponse(prompt: string): Promise<string> {
   if (USE_MOCK) {
     return fetchGptMockResponse();
   } else {
+    /* istanbul ignore next */
     return fetchGptResponse(prompt);
   }
 }
