@@ -45,17 +45,65 @@ class ContentEditableElement implements EditableElement {
   }
 
   extractText(): string {
-    const dupNewlines = /\s*\n\s*/g;
-    const dupWhitespace = /\s{2,}/g;
-    return this.element.innerText
-      .replace(dupNewlines, '\n')
-      .replace(dupWhitespace, ' ')
-      .trim();
+    return cleanText(this.element.innerText);
   }
 
   setText(newText: string): void {
     this.element.innerText = newText;
   }
+}
+
+declare global {
+  interface HTMLElement {
+    __lexicalEditor?: {
+      update: (callback: () => void, options?: { discrete: boolean }) => void;
+      getEditorState: () => any;
+    };
+  }
+}
+
+/**
+ * Represents an Lexical editor element
+ */
+class LexicalElement implements EditableElement {
+  private element: HTMLElement;
+
+  constructor(element: HTMLElement) {
+    this.element = element;
+  }
+
+  extractText(): string {
+    return cleanText(this.element.innerText);
+  }
+
+  setText(newText: string): void {
+    const textNode = document.createTextNode(newText);
+    // Replace the content of the this.element with the new text node. Wrapped
+    // with a paragraph node.
+    const pNode = document.createElement('p');
+    pNode.appendChild(textNode);
+
+    // Replace this.element's first paragraph node with the new paragraph node.
+    const pToReplace = this.element.querySelector('p');
+    if (pToReplace) {
+      pToReplace.replaceWith(pNode);
+    }
+
+    // Update the editor state.
+    const inputEvent = new InputEvent('input', {
+      inputType: 'insertText',
+      data: newText,
+      bubbles: true,
+      cancelable: true,
+    });
+    this.element.dispatchEvent(inputEvent);
+  }
+}
+
+function cleanText(text: string): string {
+  const dupNewlines = /\s*\n\s*/g;
+  const dupWhitespace = /\s{2,}/g;
+  return text.replace(dupNewlines, '\n').replace(dupWhitespace, ' ').trim();
 }
 
 /**
@@ -73,8 +121,13 @@ function getEditableElement(element: HTMLElement): EditableElement | null {
     return new InputElement(element as HTMLInputElement);
   } else if (element.tagName === 'TEXTAREA') {
     return new InputElement(element as HTMLTextAreaElement);
-  } else if (element.isContentEditable) {
+  } else if (
+    element.isContentEditable &&
+    element.dataset.lexicalEditor !== 'true'
+  ) {
     return new ContentEditableElement(element);
+  } else if (element.dataset.lexicalEditor === 'true') {
+    return new LexicalElement(element);
   }
   return null;
 }
@@ -83,5 +136,6 @@ export {
   EditableElement,
   InputElement,
   ContentEditableElement,
+  LexicalElement,
   getEditableElement,
 };
