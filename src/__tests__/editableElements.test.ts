@@ -1,7 +1,14 @@
 import {
+  createEditor,
+  $createParagraphNode,
+  $createTextNode,
+  $getRoot,
+} from 'lexical';
+import {
   getEditableElement,
   ContentEditableElement,
   InputElement,
+  LexicalElement,
 } from '../editableElements';
 
 describe('getEditableElement', () => {
@@ -143,15 +150,98 @@ describe('ContentEditableElement', () => {
   });
 });
 
-function createEditableDivElement(innerText?: string): HTMLDivElement {
-  const element = document.createElement('div');
-  element.contentEditable = 'true';
-  patchElement(element);
+describe('LexicalElement', () => {
+  let element: HTMLDivElement;
+  let editableElement: LexicalElement;
+
+  beforeEach(() => {
+    element = createLexicalElement('This is some editable text');
+    editableElement = new LexicalElement(element);
+  });
+
+  describe('extractText', () => {
+    type TestCase = { name: string; innerText: string; expected: string };
+
+    const testCases: TestCase[] = [
+      {
+        name: 'should return the innerText of a content editable element',
+        innerText: 'This is some editable text',
+        expected: 'This is some editable text',
+      },
+      {
+        name: 'should replace duplicate newlines with a single newline',
+        innerText: 'Line 1\n\nLine 2\nLine 3\n\n\nLine 4',
+        expected: 'Line 1\nLine 2\nLine 3\nLine 4',
+      },
+      {
+        name: 'should replace duplicate whitespace with a single space',
+        innerText:
+          '   This   is   some   text   with   duplicate   whitespace   ',
+        expected: 'This is some text with duplicate whitespace',
+      },
+      {
+        name: 'should return an empty string for other HTML elements',
+        innerText: '',
+        expected: '',
+      },
+    ];
+
+    testCases.forEach(({ name, innerText, expected }) => {
+      test(name, () => {
+        element.innerText = innerText;
+        const result = editableElement.extractText();
+        expect(result).toBe(expected);
+      });
+    });
+  });
+
+  describe('setText', () => {
+    test('should set the text of the content editable element', () => {
+      const newText = 'This is some new text';
+      editableElement.setText(newText);
+      expect(element.innerText).toBe(newText);
+    });
+  });
+});
+
+function createLexicalElement(innerText?: string): HTMLDivElement {
+  const editorRef = createEditableDivElement(innerText);
+
+  /**
+   * LEXICAL
+   */
+
+  const editor = createEditor({ namespace: 'test-editor', nodes: [] });
+  editor.setRootElement(editorRef);
+
+  editor.update(
+    () => {
+      const root = $getRoot();
+      const paragraph = $createParagraphNode();
+      paragraph.append($createTextNode(innerText));
+      root.append(paragraph);
+    },
+    { discrete: true }
+  );
+
+  return editorRef;
+}
+
+function createEditableDivElement(
+  innerText?: string,
+  doc: Document = document
+): HTMLDivElement {
+  const div = doc.createElement('div');
+  div.contentEditable = 'true';
+  div.setAttribute('contenteditable', 'true');
+  patchElement(div);
 
   if (innerText) {
-    element.innerText = innerText;
+    div.innerText = innerText;
+    div.textContent = innerText;
   }
-  return element;
+  document.body.appendChild(div);
+  return div;
 }
 
 /**
