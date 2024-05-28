@@ -3,7 +3,7 @@
   "trailingComma": "es5",
   "bracketSpacing": true,
   "bracketSameLine": false,
-  "arrowParens": "always",
+  "arrowParens": "avoid",
   "htmlWhitespaceSensitivity": "css",
   "insertPragma": false,
   "semi": true

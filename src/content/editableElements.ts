@@ -79,8 +79,8 @@ function getEditableElement(element: HTMLElement): EditableElement | null {
   return null;
 }
 
+export type { EditableElement };
 export {
-  EditableElement,
   InputElement,
   ContentEditableElement,
   getEditableElement,
