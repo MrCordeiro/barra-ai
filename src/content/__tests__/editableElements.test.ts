@@ -99,7 +99,11 @@ describe('ContentEditableElement', () => {
   });
 
   describe('extractText', () => {
-    type TestCase = { name: string; innerText: string; expected: string };
+    interface TestCase {
+      name: string;
+      innerText: string;
+      expected: string;
+    }
 
     const testCases: TestCase[] = [
       {

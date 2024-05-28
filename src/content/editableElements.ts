@@ -80,8 +80,4 @@ function getEditableElement(element: HTMLElement): EditableElement | null {
 }
 
 export type { EditableElement };
-export {
-  InputElement,
-  ContentEditableElement,
-  getEditableElement,
-};
+export { InputElement, ContentEditableElement, getEditableElement };

@@ -26,14 +26,18 @@ function handleKeyDown(event: KeyboardEvent): void {
   if (!element) return;
 
   const text = element.extractText();
-  if (!text || !text.startsWith(AI_COMMAND)) return;
+  if (!text?.startsWith(AI_COMMAND)) return;
 
   const prompt = createPrompt(text);
 
-  fetchAIResponse(prompt).then((response) => {
-    element.setText(response);
-    console.log(response);
-  });
+  fetchAIResponse(prompt)
+    .then(response => {
+      element.setText(response);
+      console.log(response);
+    })
+    .catch(error => {
+      console.error(error);
+    });
 }
 
 function createPrompt(text: string) {

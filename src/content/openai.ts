@@ -1,6 +1,6 @@
 'use strict';
 
-const API_KEY: string = process.env.OPENAI_API_KEY as string;
+const API_KEY: string = process.env.OPENAI_API_KEY!;
 export const USE_MOCK: boolean =
   process.env.USE_MOCK && /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK)
     ? true
@@ -11,14 +11,14 @@ interface GPTResponse {
   object: string;
   created: number;
   model: string;
-  choices: Array<{
+  choices: {
     index: number;
     message: {
       role: string;
       content: string;
     };
     finish_reason: string;
-  }>;
+  }[];
   usage: {
     prompt_tokens: number;
     completion_tokens: number;
@@ -53,7 +53,7 @@ export async function fetchGptResponse(prompt: string): Promise<string> {
     'https://api.openai.com/v1/chat/completions',
     requestOptions
   );
-  const data = await response.json();
+  const data = (await response.json()) as GPTResponse;
   return parseAnswer(data);
 }
 
@@ -74,6 +74,7 @@ function parseAnswer(data: GPTResponse): string {
  * @param prompt The prompt to be used for the mock response
  */
 
+// eslint-disable-next-line @typescript-eslint/require-await
 async function fetchGptMockResponse(): Promise<string> {
   return "🚀 Exciting news for all my fellow content creators and writers! \
   Just discovered an amazing extension that lets you effortlessly generate \

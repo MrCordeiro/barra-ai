@@ -1,4 +1,7 @@
-const { fetchGptResponse } = require('../openai');
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-var-requires */
+import { fetchGptResponse } from '../openai';
 
 describe('Environment Variable USE_MOCK', () => {
   const testCases = [
