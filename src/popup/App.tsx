@@ -1,5 +1,7 @@
 import './App.css';
 import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import Home from './components/Home';
 import Settings from './components/Settings';
 
 const chromeStorage = {
@@ -26,6 +28,7 @@ function App() {
             </li>
           </ul>
         </nav>
+        <Toaster />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route
@@ -37,19 +40,5 @@ function App() {
     </Router>
   );
 }
-
-const Home = () => {
-  return (
-    <>
-      <h1>Raawr!! 🦖 Barrasaur is live!</h1>
-      <div className="card">
-        <p>
-          To generate a post, type <code>/ai</code> followed by your prompt and
-          press {'"'}Tab{'"'}.
-        </p>
-      </div>
-    </>
-  );
-};
 
 export default App;
