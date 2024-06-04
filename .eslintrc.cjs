@@ -23,6 +23,13 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        varsIgnorePattern: '^_', // Ignore unused variables starting with an underscore
+        argsIgnorePattern: '^_', // Ignore unused function arguments starting with an underscore
+      },
+    ],
   },
   settings: {
     react: { version: 'detect' },
