@@ -25,8 +25,8 @@ const Settings = ({ storage }: Props) => {
         if (result.modelName) setModelName(result.modelName);
         setIsFormDirty(false);
       })
-      .catch(error => {
-        console.error(error);
+      .catch((error: Error) => {
+        console.error(`Error loading settings: ${error.message}`);
       });
   }, [storage]);
 
@@ -48,9 +48,9 @@ const Settings = ({ storage }: Props) => {
         toast.success('Settings saved');
         navigate('/');
       })
-      .catch(error => {
+      .catch((error: Error) => {
         toast.error('Failed to save settings');
-        console.error('Error saving settings:', error);
+        console.error(`Error saving settings: ${error.message}`);
       });
   };
 

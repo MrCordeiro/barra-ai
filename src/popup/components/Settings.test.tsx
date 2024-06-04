@@ -134,7 +134,9 @@ describe('<Settings />', () => {
     );
 
     await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(mockError);
+      expect(console.error).toHaveBeenCalledWith(
+        `Error loading settings: ${mockError.message}`
+      );
     });
   });
 
@@ -164,7 +166,9 @@ describe('<Settings />', () => {
       expect(toast.error).toHaveBeenCalledWith('Failed to save settings');
     });
     await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(mockError);
+      expect(console.error).toHaveBeenCalledWith(
+        `Error saving settings: ${mockError.message}`
+      );
     });
   });
 });
