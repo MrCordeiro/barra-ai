@@ -5,13 +5,9 @@ import Home from './components/Home';
 import Settings from './components/Settings';
 
 const chromeStorage = {
-  get: (
-    keys: string | string[] | Record<string, string> | null,
-    callback: (items: Record<string, string>) => void
-  ) => chrome.storage.local.get(keys, callback),
-
-  set: (items: Record<string, string>, callback: () => void) =>
-    chrome.storage.local.set(items, callback),
+  get: (keys: string | string[] | Record<string, string> | null) =>
+    chrome.storage.local.get(keys),
+  set: (items: Record<string, string>) => chrome.storage.local.set(items),
 };
 
 function App() {

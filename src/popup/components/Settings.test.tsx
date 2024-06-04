@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/await-thenable */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -6,10 +6,15 @@ import Settings, { Storage } from './Settings';
 
 const mockStorage: Storage & { savedData?: Record<string, string> } = {
   savedData: {},
-  get: (_keys, callback) => callback({}),
-  set: (_items, callback) => {
-    callback();
-    mockStorage.savedData = _items;
+  get: _keys =>
+    new Promise(resolve => {
+      resolve({});
+    }),
+  set: _items => {
+    return new Promise(resolve => {
+      mockStorage.savedData = _items;
+      resolve();
+    });
   },
 };
 
@@ -56,51 +61,50 @@ describe('<Settings />', () => {
     expect(saveButton).toBeDisabled();
   });
 
-  test('changes API key value', () => {
-    render(
+  test('changes API key value', async () => {
+    const { getByRole, getByLabelText } = render(
       <Router>
         <Settings storage={mockStorage} />
       </Router>
     );
 
-    const apiKeyInput = screen.getByLabelText(/API Key:/i);
+    const apiKeyInput = await getByLabelText(/API Key:/i);
     fireEvent.change(apiKeyInput, { target: { value: 'new-key' } });
     expect(apiKeyInput).toHaveValue('new-key');
 
-    const saveButton = screen.getByRole('button', { name: /Save/i });
+    const saveButton = await getByRole('button', { name: /Save/i });
     expect(saveButton).toBeEnabled();
   });
 
-  test('changes model name value', () => {
-    render(
+  test('changes model name value', async () => {
+    const { getByRole, getByLabelText } = render(
       <Router>
         <Settings storage={mockStorage} />
       </Router>
     );
 
-    const modelNameSelect = screen.getByLabelText(/Model Name:/i);
-
+    const modelNameSelect = await getByLabelText(/Model Name:/i);
     fireEvent.change(modelNameSelect, { target: { value: 'gpt-4' } });
     expect(modelNameSelect).toHaveValue('gpt-4');
 
-    const saveButton = screen.getByRole('button', { name: /Save/i });
+    const saveButton = await getByRole('button', { name: /Save/i });
     expect(saveButton).toBeEnabled();
   });
 
-  test("handleSave should call storage.set and navigate to '/'", async () => {
-    render(
+  test("handleSubmit should call storage.set and navigate to '/'", async () => {
+    const { getByLabelText, getByRole } = render(
       <Router>
         <Settings storage={mockStorage} />
       </Router>
     );
 
-    fireEvent.change(screen.getByLabelText(/API Key/i), {
+    fireEvent.change(getByLabelText(/API Key/i), {
       target: { value: 'newApiKey' },
     });
-    fireEvent.change(screen.getByLabelText(/Model Name/i), {
+    fireEvent.change(getByLabelText(/Model Name/i), {
       target: { value: 'gpt-4' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+    fireEvent.click(getByRole('button', { name: /Save/i }));
 
     expect(mockStorage.savedData).toEqual({
       apiKey: 'newApiKey',
@@ -116,9 +120,10 @@ describe('<Settings />', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
-  test('handleSave should show an error toast if storage.set fails', async () => {
-    jest.spyOn(mockStorage, 'set').mockImplementation(() => {
-      throw new Error('Mock error message');
+  test('should log an error if we fail useEffect to get saved settings', async () => {
+    const mockError = new Error('Mock error message');
+    jest.spyOn(mockStorage, 'get').mockImplementation(() => {
+      return Promise.reject(mockError);
     });
     jest.spyOn(console, 'error').mockImplementation(() => null);
 
@@ -128,17 +133,38 @@ describe('<Settings />', () => {
       </Router>
     );
 
-    fireEvent.change(screen.getByLabelText(/API Key/i), {
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith(mockError);
+    });
+  });
+
+  test('handleSubmit should show an error toast if storage.set fails', async () => {
+    const mockError = new Error('Mock error message');
+    jest.spyOn(mockStorage, 'set').mockImplementation(() => {
+      return Promise.reject(mockError);
+    });
+    jest.spyOn(console, 'error').mockImplementation(() => null);
+
+    const { getByLabelText, getByRole } = render(
+      <Router>
+        <Settings storage={mockStorage} />
+      </Router>
+    );
+
+    fireEvent.change(getByLabelText(/API Key/i), {
       target: { value: 'newApiKey' },
     });
-    fireEvent.change(screen.getByLabelText(/Model Name/i), {
+    fireEvent.change(getByLabelText(/Model Name/i), {
       target: { value: 'gpt-4' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+    fireEvent.click(getByRole('button', { name: /Save/i }));
 
     // Assert that the toast.error function was called with the correct message
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Failed to save settings');
+    });
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith(mockError);
     });
   });
 });

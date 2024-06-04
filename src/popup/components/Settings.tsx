@@ -3,11 +3,8 @@ import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 interface Storage {
-  get: (
-    keys: string[],
-    callback: (result: Record<string, string>) => void
-  ) => void;
-  set: (items: Record<string, string>, callback: () => void) => void;
+  get: (keys: string[]) => Promise<Record<string, string>>;
+  set: (items: Record<string, string>) => Promise<void>;
 }
 
 interface Props {
@@ -21,11 +18,16 @@ const Settings = ({ storage }: Props) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    storage.get(['apiKey', 'modelName'], result => {
-      if (result.apiKey) setApiKey(result.apiKey);
-      if (result.modelName) setModelName(result.modelName);
-      setIsFormDirty(false);
-    });
+    storage
+      .get(['apiKey', 'modelName'])
+      .then(result => {
+        if (result.apiKey) setApiKey(result.apiKey);
+        if (result.modelName) setModelName(result.modelName);
+        setIsFormDirty(false);
+      })
+      .catch(error => {
+        console.error(error);
+      });
   }, [storage]);
 
   const handleChangeApiKey = (e: ChangeEvent<HTMLInputElement>) => {
@@ -38,22 +40,24 @@ const Settings = ({ storage }: Props) => {
     setIsFormDirty(true);
   };
 
-  const handleSave = () => {
-    try {
-      storage.set({ apiKey, modelName }, () => {
+  const handleSubmit = (e: ChangeEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    storage
+      .set({ apiKey, modelName })
+      .then(() => {
         toast.success('Settings saved');
         navigate('/');
+      })
+      .catch(error => {
+        toast.error('Failed to save settings');
+        console.error('Error saving settings:', error);
       });
-    } catch (error) {
-      toast.error('Failed to save settings');
-      console.error('Error saving settings:', error);
-    }
   };
 
   return (
     <>
       <h1>Settings</h1>
-      <form aria-label="Settings form">
+      <form aria-label="Settings form" onSubmit={handleSubmit}>
         <label htmlFor="api-key">API Key:</label>
         <input
           id="api-key"
@@ -77,7 +81,7 @@ const Settings = ({ storage }: Props) => {
           <option value="gpt-4">GPT-4</option>
           <option value="gpt-3.5-turbo">GPT 3.5 Turbo</option>
         </select>
-        <button type="button" onClick={handleSave} disabled={!isFormDirty}>
+        <button type="submit" disabled={!isFormDirty}>
           Save
         </button>
       </form>
