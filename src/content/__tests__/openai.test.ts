@@ -79,6 +79,7 @@ describe('fetchGptResponse', () => {
     };
     global.fetch = jest.fn().mockImplementationOnce(() =>
       Promise.resolve({
+        ok: true,
         json: () => Promise.resolve(mockResponse),
       })
     );
@@ -98,6 +99,25 @@ describe('fetchGptResponse', () => {
         ),
       })
     );
+  });
+
+  test('should throw an error when the response is not ok', async () => {
+    const prompt = 'Write a LinkedIn post about AI';
+    const mockResponse = {
+      error: {
+        message: 'Test error',
+        type: 'test',
+        code: 'test',
+      },
+    };
+    global.fetch = jest.fn().mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve(mockResponse),
+      })
+    );
+
+    await expect(fetchGptResponse(prompt)).rejects.toThrow('Test error');
   });
 });
 
