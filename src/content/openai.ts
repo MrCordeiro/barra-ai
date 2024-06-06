@@ -24,6 +24,12 @@ interface GPTResponse {
     completion_tokens: number;
     total_tokens: number;
   };
+  error?: {
+    message: string;
+    type: string;
+    param: string | null;
+    code: string;
+  };
 }
 
 /**
@@ -54,6 +60,9 @@ export async function fetchGptResponse(prompt: string): Promise<string> {
     requestOptions
   );
   const data = (await response.json()) as GPTResponse;
+  if (!response.ok) {
+    throw new Error(`Failed to connect to OpenAI. ${data.error!.message}`);
+  }
   return parseAnswer(data);
 }
 

@@ -21,11 +21,11 @@ My Chrome Extension
 
 ## Todos
 
-- [?] Fix response rendering
+- [ ] Fix response rendering on Lexical
 - [x] Test removing permissions
 - [x] Write tests
-- [ ] Handle invalid_api_key error
-- [ ] Handle insufficient_quota error
+- [x] Handle invalid_api_key error
+- [x] Handle insufficient_quota error
 - [ ] Prevent usage on unsafe networks
 - [ ] Remove hard coded keys
 

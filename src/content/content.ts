@@ -9,7 +9,6 @@
 
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
-
 import { fetchAIResponse } from './openai';
 import { getEditableElement } from './editableElements';
 
@@ -35,8 +34,15 @@ function handleKeyDown(event: KeyboardEvent): void {
       element.setText(response);
       console.log(response);
     })
-    .catch(error => {
-      console.error(error);
+    .catch((error: Error) => {
+      chrome.runtime
+        .sendMessage({
+          type: 'API_ERROR',
+          message: error.message,
+        })
+        .catch(error =>
+          console.error('Error sending message to background:', error)
+        );
     });
 }
 
