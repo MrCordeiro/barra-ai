@@ -1,6 +1,7 @@
 'use strict';
 
-const API_KEY: string = process.env.OPENAI_API_KEY!;
+import { Storage, chromeStorage } from '../storages';
+
 export const USE_MOCK: boolean =
   process.env.USE_MOCK && /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK)
     ? true
@@ -37,12 +38,16 @@ interface GPTResponse {
  *
  * @param prompt The prompt to be used for the GPT response
  */
-export async function fetchGptResponse(prompt: string): Promise<string> {
+export async function fetchGptResponse(
+  prompt: string,
+  storage: Storage
+): Promise<string> {
+  const apiKey = (await storage.get('apiKey')).apiKey;
   const requestOptions = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: 'gpt-3.5-turbo-0125',
@@ -102,6 +107,6 @@ export async function fetchAIResponse(prompt: string): Promise<string> {
     return fetchGptMockResponse();
   } else {
     /* istanbul ignore next */
-    return fetchGptResponse(prompt);
+    return fetchGptResponse(prompt, chromeStorage);
   }
 }

@@ -1,11 +1,7 @@
 import { useState, useEffect, ChangeEvent } from 'react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-
-interface Storage {
-  get: (keys: string[]) => Promise<Record<string, string>>;
-  set: (items: Record<string, string>) => Promise<void>;
-}
+import { Storage } from '../../storages';
 
 interface Props {
   storage: Storage;

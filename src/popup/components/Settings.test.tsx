@@ -2,14 +2,30 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import Settings, { Storage } from './Settings';
+import Settings from './Settings';
+import { Storage } from '../../storages';
 
+/**
+ * A mock storage object that saves data in memory
+ */
 const mockStorage: Storage & { savedData?: Record<string, string> } = {
   savedData: {},
-  get: _keys =>
-    new Promise(resolve => {
-      resolve({});
-    }),
+  get: keys => {
+    return new Promise(resolve => {
+      const data = mockStorage.savedData ?? {};
+      if (!keys) {
+        return resolve(data);
+      }
+
+      const result: Record<string, string> = {};
+      (Array.isArray(keys) ? keys : [keys]).forEach(key => {
+        if (key in data) {
+          result[key] = data[key];
+        }
+      });
+      resolve(result);
+    });
+  },
   set: _items => {
     return new Promise(resolve => {
       mockStorage.savedData = _items;

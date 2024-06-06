@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-var-requires */
+import { chromeStorage } from '../../storages';
 import { fetchGptResponse } from '../openai';
 
 describe('Environment Variable USE_MOCK', () => {
@@ -49,6 +50,15 @@ describe('fetchAIResponse', () => {
 });
 
 describe('fetchGptResponse', () => {
+  beforeAll(() => {
+    jest.spyOn(chromeStorage, 'get').mockImplementation(() => {
+      return Promise.resolve({
+        apiKey: 'test-api-key',
+        modelName: 'test-model-name',
+      });
+    });
+  });
+
   beforeEach(() => {
     jest.resetModules();
     process.env.USE_MOCK = 'false';
@@ -84,7 +94,7 @@ describe('fetchGptResponse', () => {
       })
     );
 
-    const response = await fetchGptResponse(prompt);
+    const response = await fetchGptResponse(prompt, chromeStorage);
 
     expect(response).toBe(mockResponse.choices[0].message.content);
     expect(global.fetch).toHaveBeenCalledWith(
@@ -117,7 +127,9 @@ describe('fetchGptResponse', () => {
       })
     );
 
-    await expect(fetchGptResponse(prompt)).rejects.toThrow('Test error');
+    await expect(fetchGptResponse(prompt, chromeStorage)).rejects.toThrow(
+      'Test error'
+    );
   });
 });
 
