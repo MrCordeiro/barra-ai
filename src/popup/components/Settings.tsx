@@ -7,9 +7,20 @@ interface Props {
   storage: Storage;
 }
 
+const LLMModel = Object.freeze({
+  GPT_4O: { name: 'GPT-4o', value: 'gpt-4o' },
+  GPT_4_TURBO: { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+  GPT_4: { name: 'GPT-4', value: 'gpt-4' },
+  GPT_3_5_TURBO: { name: 'GPT 3.5 Turbo', value: 'gpt-3.5-turbo' },
+  GPT_3_5_TURBO_0125: {
+    name: 'GPT 3.5 Turbo 0125',
+    value: 'gpt-3.5-turbo-0125',
+  },
+});
+
 const Settings = ({ storage }: Props) => {
   const [apiKey, setApiKey] = useState('');
-  const [modelName, setModelName] = useState('gpt-3.5-turbo-0125');
+  const [modelName, setModelName] = useState(LLMModel.GPT_3_5_TURBO_0125.value);
   const [isFormDirty, setIsFormDirty] = useState(false);
   const navigate = useNavigate();
 
@@ -72,10 +83,11 @@ const Settings = ({ storage }: Props) => {
           onChange={handleChangeModelName}
           required
         >
-          <option value="gpt-4o">GPT-4o</option>
-          <option value="gpt-4-turbo">GPT-4 Turbo</option>
-          <option value="gpt-4">GPT-4</option>
-          <option value="gpt-3.5-turbo">GPT 3.5 Turbo</option>
+          {Object.values(LLMModel).map(model => (
+            <option key={model.value} value={model.value}>
+              {model.name}
+            </option>
+          ))}
         </select>
         <button type="submit" disabled={!isFormDirty}>
           Save
@@ -86,4 +98,3 @@ const Settings = ({ storage }: Props) => {
 };
 
 export default Settings;
-export type { Storage };

@@ -27,7 +27,7 @@ My Chrome Extension
 - [x] Handle invalid_api_key error
 - [x] Handle insufficient_quota error
 - [ ] Prevent usage on unsafe networks
-- [ ] Remove hard coded keys
+- [x] Remove hard coded keys
 
 ## Contribution
 

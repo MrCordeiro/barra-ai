@@ -42,7 +42,7 @@ export async function fetchGptResponse(
   prompt: string,
   storage: Storage
 ): Promise<string> {
-  const apiKey = (await storage.get('apiKey')).apiKey;
+  const { apiKey, modelName } = await getSettings(storage);
   const requestOptions = {
     method: 'POST',
     headers: {
@@ -50,7 +50,7 @@ export async function fetchGptResponse(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'gpt-3.5-turbo-0125',
+      model: modelName,
       messages: [
         { role: 'system', content: 'You are a savvy social media expert.' },
         { role: 'user', content: prompt },
@@ -69,6 +69,16 @@ export async function fetchGptResponse(
     throw new Error(`Failed to connect to OpenAI. ${data.error!.message}`);
   }
   return parseAnswer(data);
+}
+
+async function getSettings(storage: Storage) {
+  const storageData = await storage.get(['apiKey', 'modelName']);
+  if (!storageData.apiKey || !storageData.modelName) {
+    throw new Error(
+      'API Key or Model Name is not set. Please go to the settings page to set them.'
+    );
+  }
+  return storageData;
 }
 
 /**
