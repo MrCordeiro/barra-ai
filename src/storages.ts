@@ -17,6 +17,7 @@ export interface Storage {
   set: (items: Record<string, string>) => Promise<void>;
 }
 
+/* istanbul ignore next */
 export const chromeStorage = {
   get: (keys: string | string[] | null = null) =>
     chrome.storage.local.get(keys),
