@@ -21,6 +21,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "jest/**/*.ts"],
+  "include": ["src", "jest/**/*.ts", "jest/**/*.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

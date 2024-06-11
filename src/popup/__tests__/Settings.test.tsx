@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/await-thenable */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { HashRouter as Router, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@chakra-ui/react';
+import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import { Storage } from '../../storages';
-import Settings from './Settings';
+import Settings from '../components/Settings';
 
 /**
  * A mock storage object that saves data in memory
@@ -51,11 +51,7 @@ describe('<Settings />', () => {
   });
 
   test('should display a blank settings form', () => {
-    render(
-      <Router>
-        <Settings storage={mockStorage} />
-      </Router>
-    );
+    render(<Settings storage={mockStorage} />);
 
     const apiKeyInput = screen.getByLabelText(/API Key/i);
     expect(apiKeyInput).toHaveValue('');
@@ -68,11 +64,7 @@ describe('<Settings />', () => {
   });
 
   test('should show an onboarding message if showOnboarding is true', () => {
-    render(
-      <Router>
-        <Settings storage={mockStorage} showOnboarding />
-      </Router>
-    );
+    render(<Settings storage={mockStorage} showOnboarding />);
 
     const onboardingMessage = screen.getByText(/Welcome!/i);
     expect(onboardingMessage).toBeInTheDocument();
@@ -80,9 +72,7 @@ describe('<Settings />', () => {
 
   test('changes API key value', async () => {
     const { getByRole, getByLabelText } = render(
-      <Router>
-        <Settings storage={mockStorage} />
-      </Router>
+      <Settings storage={mockStorage} />
     );
 
     const apiKeyInput = await getByLabelText(/API Key/i);
@@ -95,9 +85,7 @@ describe('<Settings />', () => {
 
   test('changes model name value', async () => {
     const { getByRole, getByLabelText } = render(
-      <Router>
-        <Settings storage={mockStorage} />
-      </Router>
+      <Settings storage={mockStorage} />
     );
 
     const modelNameSelect = await getByLabelText(/Model Name/i);
@@ -115,9 +103,7 @@ describe('<Settings />', () => {
     (useToast as jest.Mock).mockReturnValue(mockToast);
 
     const { getByLabelText, getByRole } = render(
-      <Router>
-        <Settings storage={mockStorage} />
-      </Router>
+      <Settings storage={mockStorage} />
     );
 
     fireEvent.change(getByLabelText(/API Key/i), {
@@ -153,11 +139,7 @@ describe('<Settings />', () => {
     });
     jest.spyOn(console, 'error').mockImplementation(() => null);
 
-    render(
-      <Router>
-        <Settings storage={mockStorage} />
-      </Router>
-    );
+    render(<Settings storage={mockStorage} />);
 
     await waitFor(() => {
       expect(console.error).toHaveBeenCalledWith(
@@ -177,9 +159,7 @@ describe('<Settings />', () => {
     (useToast as jest.Mock).mockReturnValue(mockToast);
 
     const { getByLabelText, getByRole } = render(
-      <Router>
-        <Settings storage={mockStorage} />
-      </Router>
+      <Settings storage={mockStorage} />
     );
 
     fireEvent.change(getByLabelText(/API Key/i), {

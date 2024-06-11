@@ -1,21 +1,13 @@
 /* eslint-disable @typescript-eslint/await-thenable */
-import { render, screen, fireEvent } from '@testing-library/react';
-import {
-  HashRouter as Router,
-  useNavigate,
-  useLocation,
-} from 'react-router-dom';
-import NavBar from './NavBar';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { render, screen, fireEvent } from '../../../jest/test-utils';
+import NavBar from '../components/NavBar';
 
 describe('NavBar', () => {
   test('is rendered correctly', () => {
     (useLocation as jest.Mock).mockReturnValue({ pathname: '/' });
 
-    render(
-      <Router>
-        <NavBar />
-      </Router>
-    );
+    render(<NavBar />);
 
     const backButton = screen.queryByLabelText('Go back to Home');
     const settingsButton = screen.getByLabelText('Settings');
@@ -46,11 +38,7 @@ describe('NavBar', () => {
         (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
         (useLocation as jest.Mock).mockReturnValue({ pathname: initialPath });
 
-        const { getByLabelText } = render(
-          <Router>
-            <NavBar />
-          </Router>
-        );
+        const { getByLabelText } = render(<NavBar />);
 
         const button = await getByLabelText(buttonLabel);
         fireEvent.click(button);
