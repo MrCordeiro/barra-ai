@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/await-thenable */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter as Router } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
-import Settings from './Settings';
+import { HashRouter as Router, useNavigate } from 'react-router-dom';
+import { useToast } from '@chakra-ui/react';
 import { Storage } from '../../storages';
+import Settings from './Settings';
 
 /**
  * A mock storage object that saves data in memory
@@ -35,22 +35,12 @@ const mockStorage: Storage & { savedData?: Record<string, string> } = {
 };
 
 // Mock the toast functions
-jest.mock('react-hot-toast', () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-  },
-}));
-
-// Mock the useNavigate hook from react-router-dom
-const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => {
+jest.mock('@chakra-ui/react', () => {
   const originalModule =
-    jest.requireActual<typeof import('react-router-dom')>('react-router-dom');
-
+    jest.requireActual<typeof import('@chakra-ui/react')>('@chakra-ui/react');
   return {
-    ...(originalModule as Record<string, unknown>),
-    useNavigate: () => mockNavigate,
+    ...originalModule,
+    useToast: jest.fn(),
   };
 });
 
@@ -67,14 +57,25 @@ describe('<Settings />', () => {
       </Router>
     );
 
-    const apiKeyInput = screen.getByLabelText(/API Key:/i);
+    const apiKeyInput = screen.getByLabelText(/API Key/i);
     expect(apiKeyInput).toHaveValue('');
 
-    const modelNameSelect = screen.getByLabelText(/Model Name:/i);
+    const modelNameSelect = screen.getByLabelText(/Model Name/i);
     expect(modelNameSelect).toHaveValue('gpt-3.5-turbo-0125');
 
     const saveButton = screen.getByRole('button', { name: /Save/i });
     expect(saveButton).toBeDisabled();
+  });
+
+  test('should show an onboarding message if showOnboarding is true', () => {
+    render(
+      <Router>
+        <Settings storage={mockStorage} showOnboarding />
+      </Router>
+    );
+
+    const onboardingMessage = screen.getByText(/Welcome!/i);
+    expect(onboardingMessage).toBeInTheDocument();
   });
 
   test('changes API key value', async () => {
@@ -84,7 +85,7 @@ describe('<Settings />', () => {
       </Router>
     );
 
-    const apiKeyInput = await getByLabelText(/API Key:/i);
+    const apiKeyInput = await getByLabelText(/API Key/i);
     fireEvent.change(apiKeyInput, { target: { value: 'new-key' } });
     expect(apiKeyInput).toHaveValue('new-key');
 
@@ -99,7 +100,7 @@ describe('<Settings />', () => {
       </Router>
     );
 
-    const modelNameSelect = await getByLabelText(/Model Name:/i);
+    const modelNameSelect = await getByLabelText(/Model Name/i);
     fireEvent.change(modelNameSelect, { target: { value: 'gpt-4' } });
     expect(modelNameSelect).toHaveValue('gpt-4');
 
@@ -108,6 +109,11 @@ describe('<Settings />', () => {
   });
 
   test("handleSubmit should call storage.set and navigate to '/'", async () => {
+    const mockNavigate = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+    const mockToast = jest.fn();
+    (useToast as jest.Mock).mockReturnValue(mockToast);
+
     const { getByLabelText, getByRole } = render(
       <Router>
         <Settings storage={mockStorage} />
@@ -127,9 +133,13 @@ describe('<Settings />', () => {
       modelName: 'gpt-4',
     });
 
-    // Assert that the toast.success function was called with the correct message
+    // Assert that a success toast was called with the correct message
     await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith('Settings saved');
+      expect(mockToast).toHaveBeenCalledWith({
+        status: 'success',
+        title: 'Settings saved! 🎉',
+        variant: 'top-accent',
+      });
     });
 
     // Assert that navigate function was called with the correct path
@@ -163,6 +173,9 @@ describe('<Settings />', () => {
     });
     jest.spyOn(console, 'error').mockImplementation(() => null);
 
+    const mockToast = jest.fn();
+    (useToast as jest.Mock).mockReturnValue(mockToast);
+
     const { getByLabelText, getByRole } = render(
       <Router>
         <Settings storage={mockStorage} />
@@ -177,9 +190,13 @@ describe('<Settings />', () => {
     });
     fireEvent.click(getByRole('button', { name: /Save/i }));
 
-    // Assert that the toast.error function was called with the correct message
+    // Assert that an error toast was called with the correct message
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Failed to save settings');
+      expect(mockToast).toHaveBeenCalledWith({
+        status: 'error',
+        title: 'Failed to save settings 😢',
+        variant: 'top-accent',
+      });
     });
     await waitFor(() => {
       expect(console.error).toHaveBeenCalledWith(

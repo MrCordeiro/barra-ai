@@ -1,33 +1,47 @@
 import './App.css';
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { useEffect, useState } from 'react';
+import { HashRouter as Router, Route, Routes } from 'react-router-dom';
 import Home from './components/Home';
+import NavBar from './components/NavBar';
 import Settings from './components/Settings';
 import { chromeStorage } from '../storages';
 
 function App() {
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Show onboarding if apiKey is not set
+  useEffect(() => {
+    chromeStorage
+      .get('apiKey')
+      .then(result => {
+        if (!result.apiKey) setShowOnboarding(true);
+      })
+      .catch((error: Error) => {
+        console.error(`Error loading settings: ${error.message}`);
+      });
+  }, []);
+
   return (
     <Router>
-      <div>
-        <nav>
-          <ul>
-            <li>
-              <Link to="/">Home</Link>
-            </li>
-            <li>
-              <Link to="/settings">Settings</Link>
-            </li>
-          </ul>
-        </nav>
-        <Toaster />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route
-            path="/settings"
-            element={<Settings storage={chromeStorage} />}
-          />
-        </Routes>
-      </div>
+      <NavBar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route
+          path="/settings"
+          element={<Settings storage={chromeStorage} />}
+        />
+        {/* Default route */}
+        <Route
+          path="*"
+          element={
+            showOnboarding ? (
+              <Settings storage={chromeStorage} showOnboarding />
+            ) : (
+              <Home />
+            )
+          }
+        />
+      </Routes>
     </Router>
   );
 }
