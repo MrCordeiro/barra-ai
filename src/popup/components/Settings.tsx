@@ -18,11 +18,6 @@ import {
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { Storage } from '../../storages';
 
-interface Props {
-  storage: Storage;
-  showOnboarding?: boolean;
-}
-
 const LLMModel = Object.freeze({
   GPT_4O: { name: 'GPT-4o', value: 'gpt-4o' },
   GPT_4_TURBO: { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
@@ -34,20 +29,39 @@ const LLMModel = Object.freeze({
   },
 });
 
+interface Settings {
+  apiKey: string;
+  modelName: string;
+}
+
+const defaultSettings: Settings = {
+  apiKey: '',
+  modelName: LLMModel.GPT_3_5_TURBO_0125.value,
+};
+
+interface Props {
+  storage: Storage;
+  showOnboarding?: boolean;
+}
+
 const Settings = ({ storage, showOnboarding = false }: Props) => {
-  const [apiKey, setApiKey] = useState('');
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [showKey, setShowKey] = useState(false);
-  const [modelName, setModelName] = useState(LLMModel.GPT_3_5_TURBO_0125.value);
   const [isFormDirty, setIsFormDirty] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
 
+  /* Load settings from storage */
   useEffect(() => {
     storage
       .get(['apiKey', 'modelName'])
       .then(result => {
-        if (result.apiKey) setApiKey(result.apiKey);
-        if (result.modelName) setModelName(result.modelName);
+        if (result.apiKey || result.modelName) {
+          setSettings({
+            apiKey: result.apiKey || defaultSettings.apiKey,
+            modelName: result.modelName || defaultSettings.modelName,
+          });
+        }
         setIsFormDirty(false);
       })
       .catch((error: Error) => {
@@ -55,20 +69,27 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       });
   }, [storage]);
 
-  const handleChangeApiKey = (e: ChangeEvent<HTMLInputElement>) => {
-    setApiKey(e.target.value);
+  /* Update settings on change */
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    console.log('changing: ', name, value);
+    console.log(settings);
+
+    setSettings(prevSettings => ({
+      ...prevSettings,
+      [name]: value,
+    }));
+    console.log(settings);
     setIsFormDirty(true);
   };
 
-  const handleChangeModelName = (e: ChangeEvent<HTMLSelectElement>) => {
-    setModelName(e.target.value);
-    setIsFormDirty(true);
-  };
-
+  /* Save settings to storage */
   const handleSubmit = (e: ChangeEvent<HTMLFormElement>) => {
     e.preventDefault();
     storage
-      .set({ apiKey, modelName })
+      .set({ ...settings })
       .then(() => {
         toast({
           status: 'success',
@@ -111,10 +132,11 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           <InputGroup size="md">
             <Input
               id="api-key"
+              name="apiKey"
               pr="4.5rem"
               type={showKey ? 'text' : 'password'}
-              value={apiKey}
-              onChange={handleChangeApiKey}
+              value={settings.apiKey}
+              onChange={handleChange}
               aria-label="API Key"
             />
             <InputRightElement width="4.5rem">
@@ -136,9 +158,9 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           <FormLabel>Model Name</FormLabel>
           <Select
             id="model-name"
-            name="model-name"
-            value={modelName}
-            onChange={handleChangeModelName}
+            name="modelName"
+            value={settings.modelName}
+            onChange={handleChange}
             aria-label="Model Name"
           >
             {Object.values(LLMModel).map(model => (
