@@ -9,8 +9,9 @@ lerna-debug.log*
 
 node_modules
 .eslintcache
-dist
 build
+dist
+dist-zip
 dist-ssr
 *.local
 coverage
