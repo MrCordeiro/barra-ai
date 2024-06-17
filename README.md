@@ -48,7 +48,13 @@ Type `/ai ` followed by your prompt in **any input or text field**, press Tab, a
 
 ## Limitations
 
-Barra AI currently does not work with sites that use the Lexical editor framework, including Whatsapp, Facebook, Instagram, and Threads.
+Barra AI currently does not work with sites that use the Lexical editor framework. This includes:
+
+- Reddit
+- Whatsapp
+- Facebook
+- Instagram
+- Threads
 
 ## Development
 
