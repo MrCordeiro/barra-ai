@@ -104,7 +104,7 @@ describe('fetchGptResponse', () => {
         body: expect.stringContaining(
           JSON.stringify({
             role: 'system',
-            content: 'You are a savvy social media expert.',
+            content: 'You are a savvy writer.',
           })
         ),
       })

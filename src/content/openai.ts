@@ -52,7 +52,7 @@ export async function fetchGptResponse(
     body: JSON.stringify({
       model: modelName,
       messages: [
-        { role: 'system', content: 'You are a savvy social media expert.' },
+        { role: 'system', content: 'You are a savvy writer.' },
         { role: 'user', content: prompt },
       ],
       temperature: 0.8,
