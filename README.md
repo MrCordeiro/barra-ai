@@ -26,7 +26,7 @@ Type `/ai ` followed by your prompt in **any input or text field**, press Tab, a
 
 ## Install
 
-[**Chrome** extension]() <!-- TODO: Add chrome extension link inside parenthesis -->
+[**Chrome** extension](https://chromewebstore.google.com/detail/barraai/ehdmmalhleifjcfemdonbaemcbblfpja)
 
 ## Usage
 
