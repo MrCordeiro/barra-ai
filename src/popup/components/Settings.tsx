@@ -19,6 +19,7 @@ import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { Storage } from '../../storages';
 
 const LLMModel = Object.freeze({
+  GPT_4O_MINI: { name: 'GPT-4o Mini', value: 'gpt-4o-mini' },
   GPT_4O: { name: 'GPT-4o', value: 'gpt-4o' },
   GPT_4_TURBO: { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
   GPT_4: { name: 'GPT-4', value: 'gpt-4' },
@@ -36,7 +37,7 @@ interface Settings {
 
 const defaultSettings: Settings = {
   apiKey: '',
-  modelName: LLMModel.GPT_3_5_TURBO_0125.value,
+  modelName: LLMModel.GPT_4O_MINI.value,
 };
 
 interface Props {
