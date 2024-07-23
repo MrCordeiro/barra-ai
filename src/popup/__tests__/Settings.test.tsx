@@ -57,7 +57,7 @@ describe('<Settings />', () => {
     expect(apiKeyInput).toHaveValue('');
 
     const modelNameSelect = screen.getByLabelText(/Model Name/i);
-    expect(modelNameSelect).toHaveValue('gpt-3.5-turbo-0125');
+    expect(modelNameSelect).toHaveValue('gpt-4o-mini');
 
     const saveButton = screen.getByRole('button', { name: /Save/i });
     expect(saveButton).toBeDisabled();
