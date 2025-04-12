@@ -19,15 +19,16 @@ import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { Storage } from '../../storages';
 
 const LLMModel = Object.freeze({
+  GPT_4_5_PREVIEW: {
+    name: 'GPT-4.5 Preview',
+    value: 'gpt-4.5-preview-2025-02-27',
+  },
+  O3_MINI: { name: 'o3 Mini', value: 'o3-mini-2025-01-31' },
   GPT_4O_MINI: { name: 'GPT-4o Mini', value: 'gpt-4o-mini' },
   GPT_4O: { name: 'GPT-4o', value: 'gpt-4o' },
   GPT_4_TURBO: { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
   GPT_4: { name: 'GPT-4', value: 'gpt-4' },
   GPT_3_5_TURBO: { name: 'GPT 3.5 Turbo', value: 'gpt-3.5-turbo' },
-  GPT_3_5_TURBO_0125: {
-    name: 'GPT 3.5 Turbo 0125',
-    value: 'gpt-3.5-turbo-0125',
-  },
 });
 
 interface Settings {
