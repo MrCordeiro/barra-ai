@@ -47,7 +47,8 @@ function handleKeyDown(event: KeyboardEvent): void {
 }
 
 function createPrompt(text: string) {
-  const prePrompt = 'Write a LinkedIn post about ';
+  const prePrompt =
+    '[You are a witty and clever assistant. Be concise unless otherwise specified.] ';
   const postPrompt =
     '[Return only the main response. Write in an approcheable, yet witty manner.]';
   const prompt = `${prePrompt} ${text.replace(AI_COMMAND, '')} ${postPrompt}`;
