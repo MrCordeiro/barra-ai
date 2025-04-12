@@ -1,6 +1,6 @@
 {
   "name": "barra-ai",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Type '/ai' let Barrasaur fetch GPT to help you",
   "private": true,
   "type": "module",
