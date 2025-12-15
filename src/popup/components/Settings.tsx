@@ -16,20 +16,8 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
+import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
 import { Storage } from '../../storages';
-
-const LLMModel = Object.freeze({
-  GPT_4_5_PREVIEW: {
-    name: 'GPT-4.5 Preview',
-    value: 'gpt-4.5-preview-2025-02-27',
-  },
-  O3_MINI: { name: 'o3 Mini', value: 'o3-mini-2025-01-31' },
-  GPT_4O_MINI: { name: 'GPT-4o Mini', value: 'gpt-4o-mini' },
-  GPT_4O: { name: 'GPT-4o', value: 'gpt-4o' },
-  GPT_4_TURBO: { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
-  GPT_4: { name: 'GPT-4', value: 'gpt-4' },
-  GPT_3_5_TURBO: { name: 'GPT 3.5 Turbo', value: 'gpt-3.5-turbo' },
-});
 
 interface Settings {
   apiKey: string;
@@ -38,7 +26,7 @@ interface Settings {
 
 const defaultSettings: Settings = {
   apiKey: '',
-  modelName: LLMModel.GPT_4O_MINI.value,
+  modelName: DEFAULT_LLM_MODEL.value,
 };
 
 interface Props {
@@ -76,14 +64,10 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    console.log('changing: ', name, value);
-    console.log(settings);
-
     setSettings(prevSettings => ({
       ...prevSettings,
       [name]: value,
     }));
-    console.log(settings);
     setIsFormDirty(true);
   };
 
@@ -165,7 +149,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             onChange={handleChange}
             aria-label="Model Name"
           >
-            {Object.values(LLMModel).map(model => (
+            {LLM_MODEL_OPTIONS.map(model => (
               <option key={model.value} value={model.value}>
                 {model.name}
               </option>

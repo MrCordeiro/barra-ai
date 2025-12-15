@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@chakra-ui/react';
 import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
+import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
 import { Storage } from '../../storages';
 import Settings from '../components/Settings';
 
@@ -34,6 +35,11 @@ const mockStorage: Storage & { savedData?: Record<string, string> } = {
   },
 };
 
+// Get the first LLM model that is not the default model
+const LLMModel = LLM_MODEL_OPTIONS.find(
+  model => model.value !== DEFAULT_LLM_MODEL.value
+)?.value;
+
 // Mock the toast functions
 jest.mock('@chakra-ui/react', () => {
   const originalModule =
@@ -57,7 +63,7 @@ describe('<Settings />', () => {
     expect(apiKeyInput).toHaveValue('');
 
     const modelNameSelect = screen.getByLabelText(/Model Name/i);
-    expect(modelNameSelect).toHaveValue('gpt-4o-mini');
+    expect(modelNameSelect).toHaveValue(DEFAULT_LLM_MODEL.value);
 
     const saveButton = screen.getByRole('button', { name: /Save/i });
     expect(saveButton).toBeDisabled();
@@ -89,8 +95,10 @@ describe('<Settings />', () => {
     );
 
     const modelNameSelect = await getByLabelText(/Model Name/i);
-    fireEvent.change(modelNameSelect, { target: { value: 'gpt-4' } });
-    expect(modelNameSelect).toHaveValue('gpt-4');
+    fireEvent.change(modelNameSelect, {
+      target: { value: LLMModel },
+    });
+    expect(modelNameSelect).toHaveValue(LLMModel);
 
     const saveButton = await getByRole('button', { name: /Save/i });
     expect(saveButton).toBeEnabled();
@@ -110,13 +118,13 @@ describe('<Settings />', () => {
       target: { value: 'newApiKey' },
     });
     fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: 'gpt-4' },
+      target: { value: LLMModel },
     });
     fireEvent.click(getByRole('button', { name: /Save/i }));
 
     expect(mockStorage.savedData).toEqual({
       apiKey: 'newApiKey',
-      modelName: 'gpt-4',
+      modelName: LLMModel,
     });
 
     // Assert that a success toast was called with the correct message
@@ -166,7 +174,7 @@ describe('<Settings />', () => {
       target: { value: 'newApiKey' },
     });
     fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: 'gpt-4' },
+      target: { value: LLMModel },
     });
     fireEvent.click(getByRole('button', { name: /Save/i }));
 
