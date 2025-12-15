@@ -5,20 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.1] - Unpublished
+## [1.0.1] - 2025-12-15
 
 ### Added
 
-- Support for `gpt-4.5-preview-2025-02-27`.
-- Support for `o3-mini-2025-01-31`.
+- Support for `gpt-5.2`, `gpt-5.1`, `gpt-5`, `gpt-5-mini`, and `gpt-5-nano`.
+- Support for `gpt-4.1`, `gpt-4.1-mini`, and `gpt-4.1-nano`.
 
 ### Removed
 
-- Support for `gpt-3.5-turbo-0125`.
+- Snapshot-specific models such as `gpt-4.5-preview-2025-02-27` and `o3-mini-2025-01-31`.
 
 ### Changed
 
-- Bumped vite, rollup, and other dependencies to the latest versions via dependabot.
+- Centralized the OpenAI model catalog.
 
 ## [1.0.0] - 2024-08-02
 
