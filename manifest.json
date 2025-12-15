@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Barra/AI",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Type '/ai' let Barrasaur fetch GPT to help you",
   "icons": {
     "16": "icons/icon_16.png",
