@@ -9,7 +9,7 @@
 
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
-import { fetchAIResponse } from './openai';
+import { fetchAIResponse } from './ai';
 import { getEditableElement } from './editableElements';
 
 const AI_COMMAND = '/ai ';
