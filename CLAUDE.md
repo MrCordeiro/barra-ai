@@ -36,20 +36,22 @@ The codebase has clear separation of concerns. Maintain it.
 
 ### Layers (don't mix them)
 
-| Layer | Location | Responsibility |
-|---|---|---|
-| DOM abstraction | `src/content/editableElements.ts` | All element reads/writes go through `EditableElement` |
-| AI provider | `src/content/openai.ts` | API calls and response parsing |
-| Storage | `src/storages.ts` | All Chrome storage access through the `Storage` interface |
-| Background | `src/background/` | Notifications and error surfacing only |
-| Popup UI | `src/popup/` | Settings and onboarding only |
+| Layer                   | Location                          | Responsibility                                               |
+| ----------------------- | --------------------------------- | ------------------------------------------------------------ |
+| DOM abstraction         | `src/content/editableElements.ts` | All element reads/writes go through `EditableElement`        |
+| AI routing              | `src/content/ai.ts`               | `fetchAIResponse` entry point, `USE_MOCK`, provider dispatch |
+| AI provider — OpenAI    | `src/content/openai.ts`           | OpenAI API calls and response parsing only                   |
+| AI provider — Anthropic | `src/content/anthropic.ts`        | Anthropic Messages API calls and response parsing only       |
+| Storage                 | `src/storages.ts`                 | All Chrome storage access through the `Storage` interface    |
+| Background              | `src/background/`                 | Notifications and error surfacing only                       |
+| Popup UI                | `src/popup/`                      | Settings and onboarding only                                 |
 
 ### Patterns to follow
 
 - **New element types** → implement `EditableElement` interface, don't add ad-hoc DOM manipulation in `content.ts`.
-- **New AI providers** → model the integration on `openai.ts`. Use the `Storage` interface for credentials, not hardcoded values.
+- **New AI providers** → add a new `src/content/<provider>.ts` module modeled on `openai.ts`; register the provider's models in `src/models.ts`; add routing in `src/content/ai.ts`. Use the `Storage` interface for credentials, not hardcoded values.
 - **Storage access** → always go through the `Storage` interface, never call `chrome.storage` directly outside of `storages.ts`.
-- **Mock support** → any new provider function that makes network calls must support the `USE_MOCK` pattern for testability.
+- **Mock support** → `USE_MOCK` is resolved once in `ai.ts`. Provider modules (`openai.ts`, `anthropic.ts`) do not need to handle it — keep mock logic out of provider files.
 
 ---
 
