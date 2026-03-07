@@ -35,9 +35,15 @@ const mockStorage: Storage & { savedData?: Record<string, string> } = {
   },
 };
 
-// Get the first LLM model that is not the default model
-const LLMModel = LLM_MODEL_OPTIONS.find(
-  model => model.value !== DEFAULT_LLM_MODEL.value
+// Get the first OpenAI model that is not the default model
+const openAIModel = LLM_MODEL_OPTIONS.find(
+  model =>
+    model.value !== DEFAULT_LLM_MODEL.value && model.provider === 'openai'
+)?.value;
+
+// Get a Claude model for Anthropic-specific tests
+const claudeModel = LLM_MODEL_OPTIONS.find(
+  model => model.provider === 'anthropic'
 )?.value;
 
 // Mock the toast functions
@@ -96,9 +102,9 @@ describe('<Settings />', () => {
 
     const modelNameSelect = await getByLabelText(/Model Name/i);
     fireEvent.change(modelNameSelect, {
-      target: { value: LLMModel },
+      target: { value: openAIModel },
     });
-    expect(modelNameSelect).toHaveValue(LLMModel);
+    expect(modelNameSelect).toHaveValue(openAIModel);
 
     const saveButton = await getByRole('button', { name: /Save/i });
     expect(saveButton).toBeEnabled();
@@ -118,16 +124,16 @@ describe('<Settings />', () => {
       target: { value: 'newApiKey' },
     });
     fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: LLMModel },
+      target: { value: openAIModel },
     });
     fireEvent.click(getByRole('button', { name: /Save/i }));
 
     expect(mockStorage.savedData).toEqual({
       apiKey: 'newApiKey',
-      modelName: LLMModel,
+      anthropicApiKey: '',
+      modelName: openAIModel,
     });
 
-    // Assert that a success toast was called with the correct message
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({
         status: 'success',
@@ -136,8 +142,43 @@ describe('<Settings />', () => {
       });
     });
 
-    // Assert that navigate function was called with the correct path
     expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+
+  test('shows Anthropic API Key field when a Claude model is selected', () => {
+    const { getByLabelText } = render(<Settings storage={mockStorage} />);
+
+    fireEvent.change(getByLabelText(/Model Name/i), {
+      target: { value: claudeModel },
+    });
+
+    const apiKeyInput = getByLabelText(/API Key/i);
+    expect(apiKeyInput).toHaveAttribute('name', 'anthropicApiKey');
+  });
+
+  test('handleSubmit saves anthropicApiKey when a Claude model is selected', () => {
+    const mockNavigate = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+    const mockToast = jest.fn();
+    (useToast as jest.Mock).mockReturnValue(mockToast);
+
+    const { getByLabelText, getByRole } = render(
+      <Settings storage={mockStorage} />
+    );
+
+    fireEvent.change(getByLabelText(/Model Name/i), {
+      target: { value: claudeModel },
+    });
+    fireEvent.change(getByLabelText(/API Key/i), {
+      target: { value: 'my-claude-key' },
+    });
+    fireEvent.click(getByRole('button', { name: /Save/i }));
+
+    expect(mockStorage.savedData).toEqual({
+      apiKey: '',
+      anthropicApiKey: 'my-claude-key',
+      modelName: claudeModel,
+    });
   });
 
   test('should log an error if we fail useEffect to get saved settings', async () => {
@@ -174,11 +215,10 @@ describe('<Settings />', () => {
       target: { value: 'newApiKey' },
     });
     fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: LLMModel },
+      target: { value: openAIModel },
     });
     fireEvent.click(getByRole('button', { name: /Save/i }));
 
-    // Assert that an error toast was called with the correct message
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({
         status: 'error',

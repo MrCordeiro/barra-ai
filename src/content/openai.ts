@@ -2,11 +2,6 @@
 
 import { Storage, chromeStorage } from '../storages';
 
-export const USE_MOCK: boolean =
-  process.env.USE_MOCK && /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK)
-    ? true
-    : false;
-
 interface GPTResponse {
   id: string;
   object: string;
@@ -91,32 +86,7 @@ function parseAnswer(data: GPTResponse): string {
   return answer;
 }
 
-/**
- * A dummy function to mock the fetchGptResponse function without making an
- * actual API call
- *
- * @param prompt The prompt to be used for the mock response
- */
-
-// eslint-disable-next-line @typescript-eslint/require-await
-async function fetchGptMockResponse(): Promise<string> {
-  return "🚀 Exciting news for all my fellow content creators and writers! \
-  Just discovered an amazing extension that lets you effortlessly generate \
-  GPT-powered texts with just a simple 'ai' command. Say goodbye to writer's \
-  block and hello to endless possibilities! 📝💡 \
-  #AI #ContentCreation #Innovation";
-}
-
-/**
- * Fetches the GPT response from the OpenAI API
- *
- * @param prompt The prompt to be used for the GPT response
- */
-export async function fetchAIResponse(prompt: string): Promise<string> {
-  if (USE_MOCK) {
-    return fetchGptMockResponse();
-  } else {
-    /* istanbul ignore next */
-    return fetchGptResponse(prompt, chromeStorage);
-  }
+/* istanbul ignore next */
+export async function fetchOpenAIResponse(prompt: string): Promise<string> {
+  return fetchGptResponse(prompt, chromeStorage);
 }
