@@ -28,13 +28,9 @@ export async function fetchAIResponse(prompt: string): Promise<string> {
   if (USE_MOCK) {
     return fetchAIMockResponse();
   }
-  /* istanbul ignore next */
   const { modelName } = await chromeStorage.get(['modelName']);
-  /* istanbul ignore next */
   if (modelName && getProviderForModel(modelName as string) === 'anthropic') {
-    /* istanbul ignore next */
     return fetchAnthropicResponse(prompt, chromeStorage);
   }
-  /* istanbul ignore next */
   return fetchGptResponse(prompt, chromeStorage);
 }
