@@ -1,17 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { chromeStorage } from '../../storages';
 import { fetchAnthropicResponse } from '../anthropic';
-
-function makeStream(dataLines: string[]): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  return new ReadableStream({
-    start(controller) {
-      for (const line of dataLines)
-        controller.enqueue(encoder.encode(line + '\n'));
-      controller.close();
-    },
-  });
-}
+import { makeStream } from '../../../jest/streamTestUtils';
 
 function anthropicChunk(text: string): string {
   return `data: ${JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text } })}`;
@@ -133,5 +123,15 @@ describe('fetchAnthropicResponse', () => {
     await expect(
       fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
     ).rejects.toThrow('API Key or Model Name is not set');
+  });
+
+  test('should throw when response body is null', async () => {
+    global.fetch = jest
+      .fn()
+      .mockImplementationOnce(() => Promise.resolve({ ok: true, body: null }));
+
+    await expect(
+      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
+    ).rejects.toThrow('Anthropic response has no body');
   });
 });

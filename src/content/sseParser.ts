@@ -21,11 +21,11 @@ export async function parseSSEStream(
     chunk = await reader.read()
   ) {
     buffer += decoder.decode(chunk.value, { stream: true });
-    const lines = buffer.split('\n');
+    const lines = buffer.split(/\r?\n/);
     buffer = lines.pop() ?? '';
     for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const text = extractText(line.slice(6));
+      if (!line.startsWith('data:')) continue;
+      const text = extractText(line.slice(5).replace(/^ /, ''));
       if (text) fullText += text;
     }
   }

@@ -1,17 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { chromeStorage } from '../../storages';
 import { fetchGptResponse } from '../openai';
-
-function makeStream(dataLines: string[]): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  return new ReadableStream({
-    start(controller) {
-      for (const line of dataLines)
-        controller.enqueue(encoder.encode(line + '\n'));
-      controller.close();
-    },
-  });
-}
+import { makeStream } from '../../../jest/streamTestUtils';
 
 function gptChunk(content: string): string {
   return `data: ${JSON.stringify({ choices: [{ delta: { content }, index: 0 }] })}`;
@@ -116,5 +106,15 @@ describe('fetchGptResponse', () => {
     await expect(
       fetchGptResponse(prompt, 'gpt-4o-mini', chromeStorage)
     ).rejects.toThrow('Test error');
+  });
+
+  test('should throw when response body is null', async () => {
+    global.fetch = jest
+      .fn()
+      .mockImplementationOnce(() => Promise.resolve({ ok: true, body: null }));
+
+    await expect(
+      fetchGptResponse('prompt', 'gpt-4o-mini', chromeStorage)
+    ).rejects.toThrow('OpenAI response has no body');
   });
 });

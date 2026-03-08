@@ -75,7 +75,8 @@ export async function fetchGptResponse(
     throw new Error(`Failed to connect to OpenAI. ${data.error!.message}`);
   }
 
-  return parseSSEStream(response.body!, raw => {
+  if (!response.body) throw new Error('OpenAI response has no body');
+  return parseSSEStream(response.body, raw => {
     if (raw.trim() === '[DONE]') return '';
     const chunk = JSON.parse(raw) as GPTStreamChunk;
     const text = chunk.choices[0]?.delta?.content ?? '';

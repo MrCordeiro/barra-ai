@@ -1,14 +1,5 @@
 import { parseSSEStream } from '../sseParser';
-
-function makeStream(lines: string[]): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  return new ReadableStream({
-    start(controller) {
-      for (const line of lines) controller.enqueue(encoder.encode(line + '\n'));
-      controller.close();
-    },
-  });
-}
+import { makeStream } from '../../../jest/streamTestUtils';
 
 describe('parseSSEStream', () => {
   test('extracts text from data lines and returns accumulated result', async () => {
@@ -56,5 +47,23 @@ describe('parseSSEStream', () => {
     const stream = makeStream(['data: ignored']);
     const result = await parseSSEStream(stream, () => '');
     expect(result).toBe('');
+  });
+
+  test('handles CRLF line endings', async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: hello\r\ndata: world\r\n'));
+        controller.close();
+      },
+    });
+    const result = await parseSSEStream(stream, raw => raw);
+    expect(result).toBe('helloworld');
+  });
+
+  test('accepts data: without space after colon', async () => {
+    const stream = makeStream(['data:hello', 'data: world']);
+    const result = await parseSSEStream(stream, raw => raw);
+    expect(result).toBe('helloworld');
   });
 });

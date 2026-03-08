@@ -52,7 +52,8 @@ export async function fetchAnthropicResponse(
     throw new Error(`Failed to connect to Anthropic. ${data.error!.message}`);
   }
 
-  return parseSSEStream(response.body!, raw => {
+  if (!response.body) throw new Error('Anthropic response has no body');
+  return parseSSEStream(response.body, raw => {
     const chunk = JSON.parse(raw) as AnthropicStreamChunk;
     if (
       chunk.type !== 'content_block_delta' ||
