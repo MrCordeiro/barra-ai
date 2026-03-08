@@ -17,12 +17,15 @@ interface AnthropicResponse {
  * Fetches a response from the Anthropic Messages API
  *
  * @param prompt The prompt to be sent
+ * @param modelName The model to use
+ * @param storage Storage instance for reading credentials
  */
 export async function fetchAnthropicResponse(
   prompt: string,
+  modelName: string,
   storage: Storage
 ): Promise<string> {
-  const { anthropicApiKey, modelName } = await getSettings(storage);
+  const { anthropicApiKey } = await getSettings(storage);
   const requestOptions = {
     method: 'POST',
     headers: {
@@ -50,18 +53,19 @@ export async function fetchAnthropicResponse(
 }
 
 async function getSettings(storage: Storage) {
-  const storageData = await storage.get(['anthropicApiKey', 'modelName']);
-  if (!storageData.anthropicApiKey || !storageData.modelName) {
+  const { anthropicApiKey } = await storage.get(['anthropicApiKey']);
+  if (!anthropicApiKey) {
     throw new Error(
       'API Key or Model Name is not set. Please go to the settings page to set them.'
     );
   }
-  return storageData;
+  return { anthropicApiKey };
 }
 
 /* istanbul ignore next */
 export async function fetchAnthropicAIResponse(
-  prompt: string
+  prompt: string,
+  modelName: string
 ): Promise<string> {
-  return fetchAnthropicResponse(prompt, chromeStorage);
+  return fetchAnthropicResponse(prompt, modelName, chromeStorage);
 }

@@ -32,12 +32,15 @@ interface GPTResponse {
  * Fetches the GPT response from the OpenAI API
  *
  * @param prompt The prompt to be used for the GPT response
+ * @param modelName The model to use
+ * @param storage Storage instance for reading credentials
  */
 export async function fetchGptResponse(
   prompt: string,
+  modelName: string,
   storage: Storage
 ): Promise<string> {
-  const { openaiApiKey, modelName } = await getSettings(storage);
+  const { openaiApiKey } = await getSettings(storage);
   const requestOptions = {
     method: 'POST',
     headers: {
@@ -67,13 +70,13 @@ export async function fetchGptResponse(
 }
 
 async function getSettings(storage: Storage) {
-  const storageData = await storage.get(['openaiApiKey', 'modelName']);
-  if (!storageData.openaiApiKey || !storageData.modelName) {
+  const { openaiApiKey } = await storage.get(['openaiApiKey']);
+  if (!openaiApiKey) {
     throw new Error(
       'API Key or Model Name is not set. Please go to the settings page to set them.'
     );
   }
-  return storageData;
+  return { openaiApiKey };
 }
 
 /**
@@ -87,6 +90,9 @@ function parseAnswer(data: GPTResponse): string {
 }
 
 /* istanbul ignore next */
-export async function fetchOpenAIResponse(prompt: string): Promise<string> {
-  return fetchGptResponse(prompt, chromeStorage);
+export async function fetchOpenAIResponse(
+  prompt: string,
+  modelName: string
+): Promise<string> {
+  return fetchGptResponse(prompt, modelName, chromeStorage);
 }

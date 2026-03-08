@@ -69,6 +69,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
 
   beforeEach(() => {
     process.env.USE_MOCK = 'false';
+    jest.clearAllMocks();
     jest.resetModules();
     mockFetchGptResponse.mockReset();
     mockFetchAnthropicResponse.mockReset();
@@ -82,6 +83,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
 
     expect(mockFetchGptResponse).toHaveBeenCalledWith(
       'test prompt',
+      'gpt-4o-mini',
       expect.anything()
     );
     expect(mockFetchAnthropicResponse).not.toHaveBeenCalled();
@@ -95,6 +97,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
 
     expect(mockFetchAnthropicResponse).toHaveBeenCalledWith(
       'test prompt',
+      'claude-sonnet-4-6',
       expect.anything()
     );
     expect(mockFetchGptResponse).not.toHaveBeenCalled();
@@ -106,7 +109,11 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
 
     await fetchAIResponse('test prompt');
 
-    expect(mockFetchGptResponse).toHaveBeenCalled();
+    expect(mockFetchGptResponse).toHaveBeenCalledWith(
+      'test prompt',
+      'unknown-model',
+      expect.anything()
+    );
     expect(mockFetchAnthropicResponse).not.toHaveBeenCalled();
   });
 });

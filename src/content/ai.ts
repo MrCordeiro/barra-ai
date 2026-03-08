@@ -1,14 +1,11 @@
 'use strict';
 
 import { chromeStorage } from '../storages';
-import { getProviderForModel } from '../models';
+import { DEFAULT_LLM_MODEL, getProviderForModel } from '../models';
 import { fetchGptResponse } from './openai';
 import { fetchAnthropicResponse } from './anthropic';
 
-export const USE_MOCK: boolean =
-  process.env.USE_MOCK && /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK)
-    ? true
-    : false;
+export const USE_MOCK = /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK ?? '');
 
 // eslint-disable-next-line @typescript-eslint/require-await
 async function fetchAIMockResponse(): Promise<string> {
@@ -29,8 +26,9 @@ export async function fetchAIResponse(prompt: string): Promise<string> {
     return fetchAIMockResponse();
   }
   const { modelName } = await chromeStorage.get(['modelName']);
-  if (modelName && getProviderForModel(modelName as string) === 'anthropic') {
-    return fetchAnthropicResponse(prompt, chromeStorage);
+  const resolvedModel = (modelName as string) || DEFAULT_LLM_MODEL.value;
+  if (getProviderForModel(resolvedModel) === 'anthropic') {
+    return fetchAnthropicResponse(prompt, resolvedModel, chromeStorage);
   }
-  return fetchGptResponse(prompt, chromeStorage);
+  return fetchGptResponse(prompt, resolvedModel, chromeStorage);
 }
