@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Anthropic Claude support: Claude Opus 4.6, Sonnet 4.6, and Haiku 4.5.
+- Anthropic Claude support: `claude-opus-4-6`, `claude-sonnet-4-6`, and `claude-haiku-4-5-20251001`.
 - Home page shows a warning when no API key is configured, with a link to Settings.
 - Model selector groups models by provider (OpenAI / Anthropic) for easier discovery.
 
@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Storage key renamed from `apiKey` to `openaiApiKey` for consistency with `anthropicApiKey`.
   **Action required:** existing users must re-enter their OpenAI API key in Settings after updating.
-- AI routing consolidated into `src/content/ai.ts`; provider modules are now call-only.
 
 ## [1.0.2] - 2025-12-17
 

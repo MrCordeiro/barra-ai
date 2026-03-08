@@ -16,7 +16,11 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
-import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
+import {
+  DEFAULT_LLM_MODEL,
+  LLM_MODEL_OPTIONS,
+  getProviderForModel,
+} from '../../models';
 import { Storage } from '../../storages';
 
 interface Settings {
@@ -100,6 +104,8 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
 
   const handleShowKeysClick = () => setShowKeys(!showKeys);
   const inputType = showKeys ? 'text' : 'password';
+  const selectedProvider = getProviderForModel(settings.modelName);
+  const isOpenAISelected = selectedProvider === 'openai';
   const showHideButton = (
     <InputRightElement width="4.5rem">
       <Button h="1.75rem" size="xs" onClick={handleShowKeysClick}>
@@ -151,51 +157,58 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           </Select>
         </FormControl>
 
-        <FormControl mt={6}>
-          <FormLabel>OpenAI API Key</FormLabel>
-          <InputGroup size="md">
-            <Input
-              id="openai-api-key"
-              name="openaiApiKey"
-              pr="4.5rem"
-              type={inputType}
-              value={settings.openaiApiKey}
-              onChange={handleChange}
-              aria-label="OpenAI API Key"
-            />
-            {showHideButton}
-          </InputGroup>
-          <FormHelperText>
-            {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
-            <Link href="https://platform.openai.com/api-keys" isExternal>
-              OpenAI dashboard
-              <ExternalLinkIcon mx="2px" mb="3px" />
-            </Link>
-          </FormHelperText>
-        </FormControl>
+        {isOpenAISelected && (
+          <FormControl mt={6}>
+            <FormLabel>OpenAI API Key</FormLabel>
+            <InputGroup size="md">
+              <Input
+                id="openai-api-key"
+                name="openaiApiKey"
+                pr="4.5rem"
+                type={inputType}
+                value={settings.openaiApiKey}
+                onChange={handleChange}
+                aria-label="OpenAI API Key"
+              />
+              {showHideButton}
+            </InputGroup>
+            <FormHelperText>
+              {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
+              <Link href="https://platform.openai.com/api-keys" isExternal>
+                OpenAI dashboard
+                <ExternalLinkIcon mx="2px" mb="3px" />
+              </Link>
+            </FormHelperText>
+          </FormControl>
+        )}
 
-        <FormControl mt={6}>
-          <FormLabel>Anthropic API Key</FormLabel>
-          <InputGroup size="md">
-            <Input
-              id="anthropic-api-key"
-              name="anthropicApiKey"
-              pr="4.5rem"
-              type={inputType}
-              value={settings.anthropicApiKey}
-              onChange={handleChange}
-              aria-label="Anthropic API Key"
-            />
-            {showHideButton}
-          </InputGroup>
-          <FormHelperText>
-            {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
-            <Link href="https://console.anthropic.com/settings/keys" isExternal>
-              Anthropic Console
-              <ExternalLinkIcon mx="2px" mb="3px" />
-            </Link>
-          </FormHelperText>
-        </FormControl>
+        {!isOpenAISelected && (
+          <FormControl mt={6}>
+            <FormLabel>Anthropic API Key</FormLabel>
+            <InputGroup size="md">
+              <Input
+                id="anthropic-api-key"
+                name="anthropicApiKey"
+                pr="4.5rem"
+                type={inputType}
+                value={settings.anthropicApiKey}
+                onChange={handleChange}
+                aria-label="Anthropic API Key"
+              />
+              {showHideButton}
+            </InputGroup>
+            <FormHelperText>
+              {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
+              <Link
+                href="https://console.anthropic.com/settings/keys"
+                isExternal
+              >
+                Anthropic Console
+                <ExternalLinkIcon mx="2px" mb="3px" />
+              </Link>
+            </FormHelperText>
+          </FormControl>
+        )}
 
         <Button
           type="submit"
