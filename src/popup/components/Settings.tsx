@@ -16,21 +16,17 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
-import {
-  DEFAULT_LLM_MODEL,
-  LLM_MODEL_OPTIONS,
-  getProviderForModel,
-} from '../../models';
+import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
 import { Storage } from '../../storages';
 
 interface Settings {
-  apiKey: string;
+  openaiApiKey: string;
   anthropicApiKey: string;
   modelName: string;
 }
 
 const defaultSettings: Settings = {
-  apiKey: '',
+  openaiApiKey: '',
   anthropicApiKey: '',
   modelName: DEFAULT_LLM_MODEL.value,
 };
@@ -42,7 +38,7 @@ interface Props {
 
 const Settings = ({ storage, showOnboarding = false }: Props) => {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [showKey, setShowKey] = useState(false);
+  const [showKeys, setShowKeys] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
@@ -50,11 +46,11 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   /* Load settings from storage */
   useEffect(() => {
     storage
-      .get(['apiKey', 'anthropicApiKey', 'modelName'])
+      .get(['openaiApiKey', 'anthropicApiKey', 'modelName'])
       .then(result => {
-        if (result.apiKey || result.anthropicApiKey || result.modelName) {
+        if (result.openaiApiKey || result.anthropicApiKey || result.modelName) {
           setSettings({
-            apiKey: result.apiKey || defaultSettings.apiKey,
+            openaiApiKey: result.openaiApiKey || defaultSettings.openaiApiKey,
             anthropicApiKey:
               result.anthropicApiKey || defaultSettings.anthropicApiKey,
             modelName: result.modelName || defaultSettings.modelName,
@@ -102,17 +98,15 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       });
   };
 
-  const handleShowKeyClick = () => setShowKey(!showKey);
-
-  const currentProvider = getProviderForModel(settings.modelName);
-  const isAnthropic = currentProvider === 'anthropic';
-  const apiKeyField = isAnthropic ? 'anthropicApiKey' : 'apiKey';
-  const apiKeyValue = isAnthropic ? settings.anthropicApiKey : settings.apiKey;
-  const apiKeyLabel = isAnthropic ? 'Anthropic API Key' : 'OpenAI API Key';
-  const apiKeyHref = isAnthropic
-    ? 'https://console.anthropic.com/settings/keys'
-    : 'https://platform.openai.com/api-keys';
-  const apiKeyLinkText = isAnthropic ? 'Anthropic Console' : 'OpenAI dashboard';
+  const handleShowKeysClick = () => setShowKeys(!showKeys);
+  const inputType = showKeys ? 'text' : 'password';
+  const showHideButton = (
+    <InputRightElement width="4.5rem">
+      <Button h="1.75rem" size="xs" onClick={handleShowKeysClick}>
+        {showKeys ? 'Hide' : 'Show'}
+      </Button>
+    </InputRightElement>
+  );
 
   return (
     <>
@@ -148,28 +142,47 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           </Select>
         </FormControl>
 
-        <FormControl isRequired mt={6}>
-          <FormLabel>{apiKeyLabel}</FormLabel>
+        <FormControl mt={6}>
+          <FormLabel>OpenAI API Key</FormLabel>
           <InputGroup size="md">
             <Input
-              id="api-key"
-              name={apiKeyField}
+              id="openai-api-key"
+              name="openaiApiKey"
               pr="4.5rem"
-              type={showKey ? 'text' : 'password'}
-              value={apiKeyValue}
+              type={inputType}
+              value={settings.openaiApiKey}
               onChange={handleChange}
-              aria-label="API Key"
+              aria-label="OpenAI API Key"
             />
-            <InputRightElement width="4.5rem">
-              <Button h="1.75rem" size="xs" onClick={handleShowKeyClick}>
-                {showKey ? 'Hide' : 'Show'}
-              </Button>
-            </InputRightElement>
+            {showHideButton}
           </InputGroup>
           <FormHelperText>
             {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
-            <Link href={apiKeyHref} isExternal>
-              {apiKeyLinkText}
+            <Link href="https://platform.openai.com/api-keys" isExternal>
+              OpenAI dashboard
+              <ExternalLinkIcon mx="2px" mb="3px" />
+            </Link>
+          </FormHelperText>
+        </FormControl>
+
+        <FormControl mt={6}>
+          <FormLabel>Anthropic API Key</FormLabel>
+          <InputGroup size="md">
+            <Input
+              id="anthropic-api-key"
+              name="anthropicApiKey"
+              pr="4.5rem"
+              type={inputType}
+              value={settings.anthropicApiKey}
+              onChange={handleChange}
+              aria-label="Anthropic API Key"
+            />
+            {showHideButton}
+          </InputGroup>
+          <FormHelperText>
+            {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
+            <Link href="https://console.anthropic.com/settings/keys" isExternal>
+              Anthropic Console
               <ExternalLinkIcon mx="2px" mb="3px" />
             </Link>
           </FormHelperText>

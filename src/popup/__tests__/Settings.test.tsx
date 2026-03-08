@@ -41,11 +41,6 @@ const openAIModel = LLM_MODEL_OPTIONS.find(
     model.value !== DEFAULT_LLM_MODEL.value && model.provider === 'openai'
 )?.value;
 
-// Get a Claude model for Anthropic-specific tests
-const claudeModel = LLM_MODEL_OPTIONS.find(
-  model => model.provider === 'anthropic'
-)?.value;
-
 // Mock the toast functions
 jest.mock('@chakra-ui/react', () => {
   const originalModule =
@@ -65,8 +60,11 @@ describe('<Settings />', () => {
   test('should display a blank settings form', () => {
     render(<Settings storage={mockStorage} />);
 
-    const apiKeyInput = screen.getByLabelText(/API Key/i);
-    expect(apiKeyInput).toHaveValue('');
+    const openaiKeyInput = screen.getByLabelText(/OpenAI API Key/i);
+    expect(openaiKeyInput).toHaveValue('');
+
+    const anthropicKeyInput = screen.getByLabelText(/Anthropic API Key/i);
+    expect(anthropicKeyInput).toHaveValue('');
 
     const modelNameSelect = screen.getByLabelText(/Model Name/i);
     expect(modelNameSelect).toHaveValue(DEFAULT_LLM_MODEL.value);
@@ -82,14 +80,27 @@ describe('<Settings />', () => {
     expect(onboardingMessage).toBeInTheDocument();
   });
 
-  test('changes API key value', async () => {
+  test('changes OpenAI API key value', async () => {
     const { getByRole, getByLabelText } = render(
       <Settings storage={mockStorage} />
     );
 
-    const apiKeyInput = await getByLabelText(/API Key/i);
-    fireEvent.change(apiKeyInput, { target: { value: 'new-key' } });
-    expect(apiKeyInput).toHaveValue('new-key');
+    const apiKeyInput = await getByLabelText(/OpenAI API Key/i);
+    fireEvent.change(apiKeyInput, { target: { value: 'new-openai-key' } });
+    expect(apiKeyInput).toHaveValue('new-openai-key');
+
+    const saveButton = await getByRole('button', { name: /Save/i });
+    expect(saveButton).toBeEnabled();
+  });
+
+  test('changes Anthropic API key value', async () => {
+    const { getByRole, getByLabelText } = render(
+      <Settings storage={mockStorage} />
+    );
+
+    const apiKeyInput = await getByLabelText(/Anthropic API Key/i);
+    fireEvent.change(apiKeyInput, { target: { value: 'new-anthropic-key' } });
+    expect(apiKeyInput).toHaveValue('new-anthropic-key');
 
     const saveButton = await getByRole('button', { name: /Save/i });
     expect(saveButton).toBeEnabled();
@@ -120,8 +131,11 @@ describe('<Settings />', () => {
       <Settings storage={mockStorage} />
     );
 
-    fireEvent.change(getByLabelText(/API Key/i), {
-      target: { value: 'newApiKey' },
+    fireEvent.change(getByLabelText(/OpenAI API Key/i), {
+      target: { value: 'my-openai-key' },
+    });
+    fireEvent.change(getByLabelText(/Anthropic API Key/i), {
+      target: { value: 'my-anthropic-key' },
     });
     fireEvent.change(getByLabelText(/Model Name/i), {
       target: { value: openAIModel },
@@ -129,8 +143,8 @@ describe('<Settings />', () => {
     fireEvent.click(getByRole('button', { name: /Save/i }));
 
     expect(mockStorage.savedData).toEqual({
-      apiKey: 'newApiKey',
-      anthropicApiKey: '',
+      openaiApiKey: 'my-openai-key',
+      anthropicApiKey: 'my-anthropic-key',
       modelName: openAIModel,
     });
 
@@ -143,42 +157,6 @@ describe('<Settings />', () => {
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('/');
-  });
-
-  test('shows Anthropic API Key field when a Claude model is selected', () => {
-    const { getByLabelText } = render(<Settings storage={mockStorage} />);
-
-    fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: claudeModel },
-    });
-
-    const apiKeyInput = getByLabelText(/API Key/i);
-    expect(apiKeyInput).toHaveAttribute('name', 'anthropicApiKey');
-  });
-
-  test('handleSubmit saves anthropicApiKey when a Claude model is selected', () => {
-    const mockNavigate = jest.fn();
-    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
-    const mockToast = jest.fn();
-    (useToast as jest.Mock).mockReturnValue(mockToast);
-
-    const { getByLabelText, getByRole } = render(
-      <Settings storage={mockStorage} />
-    );
-
-    fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: claudeModel },
-    });
-    fireEvent.change(getByLabelText(/API Key/i), {
-      target: { value: 'my-claude-key' },
-    });
-    fireEvent.click(getByRole('button', { name: /Save/i }));
-
-    expect(mockStorage.savedData).toEqual({
-      apiKey: '',
-      anthropicApiKey: 'my-claude-key',
-      modelName: claudeModel,
-    });
   });
 
   test('should log an error if we fail useEffect to get saved settings', async () => {
@@ -211,7 +189,7 @@ describe('<Settings />', () => {
       <Settings storage={mockStorage} />
     );
 
-    fireEvent.change(getByLabelText(/API Key/i), {
+    fireEvent.change(getByLabelText(/OpenAI API Key/i), {
       target: { value: 'newApiKey' },
     });
     fireEvent.change(getByLabelText(/Model Name/i), {

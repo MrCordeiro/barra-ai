@@ -37,12 +37,12 @@ export async function fetchGptResponse(
   prompt: string,
   storage: Storage
 ): Promise<string> {
-  const { apiKey, modelName } = await getSettings(storage);
+  const { openaiApiKey, modelName } = await getSettings(storage);
   const requestOptions = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${openaiApiKey}`,
     },
     body: JSON.stringify({
       model: modelName,
@@ -67,8 +67,8 @@ export async function fetchGptResponse(
 }
 
 async function getSettings(storage: Storage) {
-  const storageData = await storage.get(['apiKey', 'modelName']);
-  if (!storageData.apiKey || !storageData.modelName) {
+  const storageData = await storage.get(['openaiApiKey', 'modelName']);
+  if (!storageData.openaiApiKey || !storageData.modelName) {
     throw new Error(
       'API Key or Model Name is not set. Please go to the settings page to set them.'
     );

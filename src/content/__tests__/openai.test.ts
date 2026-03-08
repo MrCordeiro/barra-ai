@@ -6,7 +6,7 @@ describe('fetchGptResponse', () => {
   beforeAll(() => {
     jest.spyOn(chromeStorage, 'get').mockImplementation(() => {
       return Promise.resolve({
-        apiKey: 'test-api-key',
+        openaiApiKey: 'test-api-key',
         modelName: 'test-model-name',
       });
     });
