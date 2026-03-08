@@ -7,7 +7,6 @@ describe('fetchAnthropicResponse', () => {
     jest.spyOn(chromeStorage, 'get').mockImplementation(() => {
       return Promise.resolve({
         anthropicApiKey: 'test-anthropic-key',
-        modelName: 'claude-sonnet-4-6',
       });
     });
   });
@@ -34,7 +33,11 @@ describe('fetchAnthropicResponse', () => {
       })
     );
 
-    const response = await fetchAnthropicResponse(prompt, chromeStorage);
+    const response = await fetchAnthropicResponse(
+      prompt,
+      'claude-sonnet-4-6',
+      chromeStorage
+    );
 
     expect(response).toBe(mockResponse.content[0].text);
     expect(global.fetch).toHaveBeenCalledWith(
@@ -64,20 +67,18 @@ describe('fetchAnthropicResponse', () => {
       })
     );
 
-    await expect(fetchAnthropicResponse(prompt, chromeStorage)).rejects.toThrow(
-      'Invalid API key'
-    );
+    await expect(
+      fetchAnthropicResponse(prompt, 'claude-sonnet-4-6', chromeStorage)
+    ).rejects.toThrow('Invalid API key');
   });
 
   test('should throw when anthropicApiKey is missing from storage', async () => {
     jest
       .spyOn(chromeStorage, 'get')
-      .mockImplementationOnce(() =>
-        Promise.resolve({ modelName: 'claude-sonnet-4-6' })
-      );
+      .mockImplementationOnce(() => Promise.resolve({}));
 
     await expect(
-      fetchAnthropicResponse('prompt', chromeStorage)
+      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
     ).rejects.toThrow('API Key or Model Name is not set');
   });
 });

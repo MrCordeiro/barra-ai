@@ -7,7 +7,6 @@ describe('fetchGptResponse', () => {
     jest.spyOn(chromeStorage, 'get').mockImplementation(() => {
       return Promise.resolve({
         openaiApiKey: 'test-api-key',
-        modelName: 'test-model-name',
       });
     });
   });
@@ -42,7 +41,11 @@ describe('fetchGptResponse', () => {
       })
     );
 
-    const response = await fetchGptResponse(prompt, chromeStorage);
+    const response = await fetchGptResponse(
+      prompt,
+      'gpt-4o-mini',
+      chromeStorage
+    );
 
     expect(response).toBe(mockResponse.choices[0].message.content);
     expect(global.fetch).toHaveBeenCalledWith(
@@ -75,8 +78,8 @@ describe('fetchGptResponse', () => {
       })
     );
 
-    await expect(fetchGptResponse(prompt, chromeStorage)).rejects.toThrow(
-      'Test error'
-    );
+    await expect(
+      fetchGptResponse(prompt, 'gpt-4o-mini', chromeStorage)
+    ).rejects.toThrow('Test error');
   });
 });
