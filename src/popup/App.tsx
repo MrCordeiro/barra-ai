@@ -9,12 +9,13 @@ import { chromeStorage } from '../storages';
 function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Show onboarding if apiKey is not set
+  // Show onboarding if no API key is configured
   useEffect(() => {
     chromeStorage
-      .get('apiKey')
+      .get(['openaiApiKey', 'anthropicApiKey'])
       .then(result => {
-        if (!result.apiKey) setShowOnboarding(true);
+        if (!result.openaiApiKey && !result.anthropicApiKey)
+          setShowOnboarding(true);
       })
       .catch((error: Error) => {
         console.error(`Error loading settings: ${error.message}`);
@@ -25,7 +26,7 @@ function App() {
     <Router>
       <NavBar />
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home hasApiKey={!showOnboarding} />} />
         <Route
           path="/settings"
           element={<Settings storage={chromeStorage} />}
@@ -37,7 +38,7 @@ function App() {
             showOnboarding ? (
               <Settings storage={chromeStorage} showOnboarding />
             ) : (
-              <Home />
+              <Home hasApiKey />
             )
           }
         />
