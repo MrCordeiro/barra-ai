@@ -134,10 +134,19 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             onChange={handleChange}
             aria-label="Model Name"
           >
-            {LLM_MODEL_OPTIONS.map(model => (
-              <option key={model.value} value={model.value}>
-                {model.name}
-              </option>
+            {(['openai', 'anthropic'] as const).map(provider => (
+              <optgroup
+                key={provider}
+                label={provider === 'openai' ? 'OpenAI' : 'Anthropic'}
+              >
+                {LLM_MODEL_OPTIONS.filter(m => m.provider === provider).map(
+                  model => (
+                    <option key={model.value} value={model.value}>
+                      {model.name}
+                    </option>
+                  )
+                )}
+              </optgroup>
             ))}
           </Select>
         </FormControl>
