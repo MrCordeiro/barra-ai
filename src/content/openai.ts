@@ -1,6 +1,7 @@
 'use strict';
 
 import { Storage, chromeStorage } from '../storages';
+import { parseSSEStream } from './sseParser';
 
 interface GPTResponse {
   id: string;
@@ -28,17 +29,23 @@ interface GPTResponse {
   };
 }
 
+interface GPTStreamChunk {
+  choices: { delta: { content?: string }; index: number }[];
+}
+
 /**
  * Fetches the GPT response from the OpenAI API
  *
  * @param prompt The prompt to be used for the GPT response
  * @param modelName The model to use
  * @param storage Storage instance for reading credentials
+ * @param onChunk Called with each text chunk as it arrives
  */
 export async function fetchGptResponse(
   prompt: string,
   modelName: string,
-  storage: Storage
+  storage: Storage,
+  onChunk?: (chunk: string) => void
 ): Promise<string> {
   const { openaiApiKey } = await getSettings(storage);
   const requestOptions = {
@@ -55,6 +62,7 @@ export async function fetchGptResponse(
       ],
       temperature: 0.8,
       max_tokens: 200,
+      stream: true,
     }),
   };
 
@@ -62,11 +70,18 @@ export async function fetchGptResponse(
     'https://api.openai.com/v1/chat/completions',
     requestOptions
   );
-  const data = (await response.json()) as GPTResponse;
   if (!response.ok) {
+    const data = (await response.json()) as GPTResponse;
     throw new Error(`Failed to connect to OpenAI. ${data.error!.message}`);
   }
-  return parseAnswer(data);
+
+  return parseSSEStream(response.body!, raw => {
+    if (raw.trim() === '[DONE]') return '';
+    const chunk = JSON.parse(raw) as GPTStreamChunk;
+    const text = chunk.choices[0]?.delta?.content ?? '';
+    if (text) onChunk?.(text);
+    return text;
+  });
 }
 
 async function getSettings(storage: Storage) {
@@ -77,16 +92,6 @@ async function getSettings(storage: Storage) {
     );
   }
   return { openaiApiKey };
-}
-
-/**
- * Parses the GPT response to extract the answer
- *
- * @param data The GPT response data
- */
-function parseAnswer(data: GPTResponse): string {
-  const answer = data.choices[0].message.content;
-  return answer;
 }
 
 /* istanbul ignore next */

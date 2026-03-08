@@ -2,6 +2,21 @@
 import { chromeStorage } from '../../storages';
 import { fetchGptResponse } from '../openai';
 
+function makeStream(dataLines: string[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    start(controller) {
+      for (const line of dataLines)
+        controller.enqueue(encoder.encode(line + '\n'));
+      controller.close();
+    },
+  });
+}
+
+function gptChunk(content: string): string {
+  return `data: ${JSON.stringify({ choices: [{ delta: { content }, index: 0 }] })}`;
+}
+
 describe('fetchGptResponse', () => {
   beforeAll(() => {
     jest.spyOn(chromeStorage, 'get').mockImplementation(() => {
@@ -12,42 +27,24 @@ describe('fetchGptResponse', () => {
   });
 
   test('should return the parsed GPT response', async () => {
-    const prompt = 'Write a LinkedIn post about AI';
-    const mockResponse = {
-      id: 'test-id',
-      object: 'text.completion',
-      created: 1234567890,
-      model: 'gpt-3.5-turbo-0125',
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: 'user',
-            content: 'A LinkedIn post about AI',
-          },
-          finish_reason: 'stop',
-        },
-      ],
-      usage: {
-        prompt_tokens: 0,
-        completion_tokens: 0,
-        total_tokens: 0,
-      },
-    };
     global.fetch = jest.fn().mockImplementationOnce(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(mockResponse),
+        body: makeStream([
+          gptChunk('A LinkedIn post '),
+          gptChunk('about AI'),
+          'data: [DONE]',
+        ]),
       })
     );
 
     const response = await fetchGptResponse(
-      prompt,
+      'Write a LinkedIn post about AI',
       'gpt-4o-mini',
       chromeStorage
     );
 
-    expect(response).toBe(mockResponse.choices[0].message.content);
+    expect(response).toBe('A LinkedIn post about AI');
     expect(global.fetch).toHaveBeenCalledWith(
       'https://api.openai.com/v1/chat/completions',
       expect.objectContaining({
@@ -60,6 +57,44 @@ describe('fetchGptResponse', () => {
         ),
       })
     );
+  });
+
+  test('should include stream: true in the request body', async () => {
+    global.fetch = jest.fn().mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true,
+        body: makeStream(['data: [DONE]']),
+      })
+    );
+
+    await fetchGptResponse('prompt', 'gpt-4o-mini', chromeStorage);
+
+    const calls = (global.fetch as jest.Mock).mock.calls as [
+      string,
+      { body: string },
+    ][];
+    const body = JSON.parse(calls[0][1].body) as Record<string, unknown>;
+    expect(body.stream).toBe(true);
+  });
+
+  test('should call onChunk for each text delta', async () => {
+    global.fetch = jest.fn().mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true,
+        body: makeStream([
+          gptChunk('Hello'),
+          gptChunk(' world'),
+          'data: [DONE]',
+        ]),
+      })
+    );
+
+    const chunks: string[] = [];
+    await fetchGptResponse('prompt', 'gpt-4o-mini', chromeStorage, chunk =>
+      chunks.push(chunk)
+    );
+
+    expect(chunks).toEqual(['Hello', ' world']);
   });
 
   test('should throw an error when the response is not ok', async () => {
