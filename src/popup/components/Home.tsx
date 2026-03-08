@@ -16,9 +16,36 @@ interface Props {
 
 const Home = ({ hasApiKey = true }: Props) => {
   return (
-    <Box display="flex" flexDirection="column" alignItems={'center'}>
+    <Box
+      display="flex"
+      flexDirection="column"
+      justifyContent="center"
+      alignItems="center"
+      minHeight="calc(100vh - 4rem)"
+      boxSizing="border-box"
+      pt={8}
+      pb={20}
+    >
+      <Box display="flex" flexDirection="column" justifyContent="center">
+        <Heading mb={4} as="h1" textAlign="center">
+          Raawr!! 🦖 <br />
+          Barrasaur is live!
+        </Heading>
+        <Text mt={6} textAlign="center">
+          To generate a post, type <Code>/ai</Code> followed by your prompt and
+          press {'"'}Tab{'"'}.
+        </Text>
+      </Box>
       {!hasApiKey && (
-        <Alert status="warning" mb={4} borderRadius="md">
+        <Alert
+          status="warning"
+          borderRadius="md"
+          position="absolute"
+          bottom={2}
+          left="50%"
+          transform="translateX(-50%)"
+          zIndex={10}
+        >
           <AlertIcon />
           <AlertDescription>
             No API key set.{' '}
@@ -29,14 +56,6 @@ const Home = ({ hasApiKey = true }: Props) => {
           </AlertDescription>
         </Alert>
       )}
-      <Heading mb={4} as="h1" textAlign={'center'}>
-        Raawr!! 🦖 <br />
-        Barrasaur is live!
-      </Heading>
-      <Text mt={6} textAlign={'left'}>
-        To generate a post, type <Code>/ai</Code> followed by your prompt and
-        press {'"'}Tab{'"'}.
-      </Text>
     </Box>
   );
 };

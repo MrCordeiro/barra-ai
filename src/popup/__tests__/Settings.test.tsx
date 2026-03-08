@@ -39,7 +39,11 @@ const mockStorage: Storage & { savedData?: Record<string, string> } = {
 const openAIModel = LLM_MODEL_OPTIONS.find(
   model =>
     model.value !== DEFAULT_LLM_MODEL.value && model.provider === 'openai'
-)?.value;
+)!.value;
+
+const anthropicModel = LLM_MODEL_OPTIONS.find(
+  model => model.provider === 'anthropic'
+)!.value;
 
 // Mock the toast functions
 jest.mock('@chakra-ui/react', () => {
@@ -52,6 +56,10 @@ jest.mock('@chakra-ui/react', () => {
 });
 
 describe('<Settings />', () => {
+  beforeEach(() => {
+    mockStorage.savedData = {};
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
     jest.restoreAllMocks();
@@ -63,8 +71,8 @@ describe('<Settings />', () => {
     const openaiKeyInput = screen.getByLabelText(/OpenAI API Key/i);
     expect(openaiKeyInput).toHaveValue('');
 
-    const anthropicKeyInput = screen.getByLabelText(/Anthropic API Key/i);
-    expect(anthropicKeyInput).toHaveValue('');
+    const anthropicKeyInput = screen.queryByLabelText(/Anthropic API Key/i);
+    expect(anthropicKeyInput).not.toBeInTheDocument();
 
     const modelNameSelect = screen.getByLabelText(/Model Name/i);
     expect(modelNameSelect).toHaveValue(DEFAULT_LLM_MODEL.value);
@@ -97,6 +105,11 @@ describe('<Settings />', () => {
     const { getByRole, getByLabelText } = render(
       <Settings storage={mockStorage} />
     );
+
+    const modelNameSelect = await getByLabelText(/Model Name/i);
+    fireEvent.change(modelNameSelect, {
+      target: { value: anthropicModel },
+    });
 
     const apiKeyInput = await getByLabelText(/Anthropic API Key/i);
     fireEvent.change(apiKeyInput, { target: { value: 'new-anthropic-key' } });
@@ -131,14 +144,17 @@ describe('<Settings />', () => {
       <Settings storage={mockStorage} />
     );
 
-    fireEvent.change(getByLabelText(/OpenAI API Key/i), {
-      target: { value: 'my-openai-key' },
+    fireEvent.change(getByLabelText(/Model Name/i), {
+      target: { value: anthropicModel },
     });
     fireEvent.change(getByLabelText(/Anthropic API Key/i), {
       target: { value: 'my-anthropic-key' },
     });
     fireEvent.change(getByLabelText(/Model Name/i), {
       target: { value: openAIModel },
+    });
+    fireEvent.change(getByLabelText(/OpenAI API Key/i), {
+      target: { value: 'my-openai-key' },
     });
     fireEvent.click(getByRole('button', { name: /Save/i }));
 
@@ -209,5 +225,22 @@ describe('<Settings />', () => {
         `Error saving settings: ${mockError.message}`
       );
     });
+  });
+
+  test('shows only the API key input for the selected provider', async () => {
+    const { getByLabelText, queryByLabelText } = render(
+      <Settings storage={mockStorage} />
+    );
+
+    expect(getByLabelText(/OpenAI API Key/i)).toBeInTheDocument();
+    expect(queryByLabelText(/Anthropic API Key/i)).not.toBeInTheDocument();
+
+    const modelNameSelect = getByLabelText(/Model Name/i);
+    fireEvent.change(modelNameSelect, { target: { value: anthropicModel } });
+
+    await waitFor(() => {
+      expect(getByLabelText(/Anthropic API Key/i)).toBeInTheDocument();
+    });
+    expect(queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
   });
 });
