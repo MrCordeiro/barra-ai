@@ -41,9 +41,10 @@ const Home = ({ hasApiKey = true }: Props) => {
           status="warning"
           borderRadius="md"
           position="absolute"
-          bottom={2}
+          bottom={4}
           left="50%"
           transform="translateX(-50%)"
+          width="calc(100% - 2rem)"
           zIndex={10}
         >
           <AlertIcon />
