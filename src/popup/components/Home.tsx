@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   Box,
   Heading,
@@ -9,12 +10,47 @@ import {
   Link,
 } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
+import { chromeStorage, type StorageChangeListener } from '../../storages';
 
 interface Props {
   hasApiKey?: boolean;
 }
 
 const Home = ({ hasApiKey = true }: Props) => {
+  const [showWarning, setShowWarning] = useState(!hasApiKey);
+
+  useEffect(() => {
+    if (hasApiKey) {
+      setShowWarning(false);
+      return;
+    }
+
+    const checkStorage = () => {
+      chromeStorage
+        .get(['openaiApiKey', 'anthropicApiKey'])
+        .then(result => {
+          setShowWarning(!result.openaiApiKey && !result.anthropicApiKey);
+        })
+        .catch((error: Error) => {
+          console.error(`Error loading settings: ${error.message}`);
+        });
+    };
+
+    checkStorage();
+
+    const handleStorageChange: StorageChangeListener = (changes, areaName) => {
+      if (areaName !== 'local') return;
+      if (!('openaiApiKey' in changes) && !('anthropicApiKey' in changes))
+        return;
+      checkStorage();
+    };
+
+    chromeStorage.addChangeListener(handleStorageChange);
+    return () => {
+      chromeStorage.removeChangeListener(handleStorageChange);
+    };
+  }, [hasApiKey]);
+
   return (
     <Box
       display="flex"
@@ -36,7 +72,7 @@ const Home = ({ hasApiKey = true }: Props) => {
           press {'"'}Tab{'"'}.
         </Text>
       </Box>
-      {!hasApiKey && (
+      {showWarning && (
         <Alert
           status="warning"
           borderRadius="md"

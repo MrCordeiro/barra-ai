@@ -1,7 +1,40 @@
-import { render, screen } from '../../../jest/test-utils';
+import { render, screen, waitFor } from '../../../jest/test-utils';
 import Home from '../components/Home';
 
 describe('<Home />', () => {
+  const setupChromeMock = (
+    hasKey = false,
+    includeListener = false
+  ): typeof chrome => {
+    const chromeMock = {
+      storage: {
+        local: {
+          get: jest
+            .fn()
+            .mockResolvedValue(hasKey ? { openaiApiKey: 'sk-test-key' } : {}),
+        },
+        onChanged: {
+          addListener: jest.fn(),
+          removeListener: jest.fn(),
+        },
+      },
+    };
+
+    if (includeListener) {
+      global.chrome = chromeMock as unknown as typeof chrome;
+    }
+
+    return chromeMock as unknown as typeof chrome;
+  };
+
+  beforeEach(() => {
+    global.chrome = setupChromeMock();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   test('should render correctly', () => {
     render(<Home />);
 
@@ -16,5 +49,15 @@ describe('<Home />', () => {
     expect(
       screen.getByRole('link', { name: /Go to Settings/i })
     ).toBeInTheDocument();
+  });
+
+  test('hides warning when storage already has an API key', async () => {
+    global.chrome = setupChromeMock(true, true);
+
+    render(<Home hasApiKey={false} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/No API key set/i)).not.toBeInTheDocument();
+    });
   });
 });

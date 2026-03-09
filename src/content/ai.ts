@@ -31,7 +31,7 @@ export async function fetchAIResponse(
     return response;
   }
   const { modelName } = await chromeStorage.get(['modelName']);
-  const resolvedModel = (modelName as string) || DEFAULT_LLM_MODEL.value;
+  const resolvedModel = modelName || DEFAULT_LLM_MODEL.value;
   if (getProviderForModel(resolvedModel) === 'anthropic') {
     return fetchAnthropicResponse(
       prompt,
