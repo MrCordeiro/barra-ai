@@ -63,6 +63,7 @@ class ContentEditableElement implements EditableElement {
  */
 class LexicalElement implements EditableElement {
   private element: HTMLElement;
+  private insertedLength = 0;
 
   constructor(element: HTMLElement) {
     this.element = element;
@@ -74,14 +75,25 @@ class LexicalElement implements EditableElement {
 
   setText(newText: string): void {
     this.element.focus();
-    this.selectAll();
 
-    // execCommand fires beforeinput/input events that Lexical intercepts.
-    // It is deprecated but remains the only reliable way to trigger the
-    // browser's full editing pipeline programmatically.
-    if (!document.execCommand('insertText', false, newText)) {
-      this.dispatchTextInput(newText);
+    if (this.insertedLength === 0) {
+      // First call: select all existing content (the /ai command) and replace.
+      // This works because Lexical's internal selection still matches the DOM
+      // at this point (no prior programmatic edits have desynchronised them).
+      this.selectAll();
+      this.insertViaEditingPipeline(newText);
+    } else {
+      // Subsequent calls: Lexical's cursor is already at the end of the
+      // previously inserted text, so we only insert the new delta.
+      // Calling selectAll here would fail because Lexical's internal selection
+      // would not match the DOM selection we set programmatically.
+      const delta = newText.substring(this.insertedLength);
+      if (delta) {
+        this.insertViaEditingPipeline(delta);
+      }
     }
+
+    this.insertedLength = newText.length;
   }
 
   private selectAll(): void {
@@ -91,6 +103,15 @@ class LexicalElement implements EditableElement {
     range.selectNodeContents(this.element);
     selection.removeAllRanges();
     selection.addRange(range);
+  }
+
+  private insertViaEditingPipeline(text: string): void {
+    // execCommand fires beforeinput/input events that Lexical intercepts.
+    // It is deprecated but remains the only reliable way to trigger the
+    // browser's full editing pipeline programmatically.
+    if (!document.execCommand('insertText', false, text)) {
+      this.dispatchTextInput(text);
+    }
   }
 
   private dispatchTextInput(text: string): void {

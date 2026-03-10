@@ -217,7 +217,7 @@ describe('LexicalElement', () => {
       );
     });
 
-    test('should select all content before inserting', () => {
+    test('should select all content on the first call to replace the trigger text', () => {
       const mockRange = {
         selectNodeContents: jest.fn(),
       };
@@ -238,6 +238,47 @@ describe('LexicalElement', () => {
       expect(mockRange.selectNodeContents).toHaveBeenCalledWith(element);
       expect(mockSelection.removeAllRanges).toHaveBeenCalled();
       expect(mockSelection.addRange).toHaveBeenCalledWith(mockRange);
+    });
+
+    test('should only insert the delta on subsequent calls', () => {
+      execCommandMock.mockReturnValue(true);
+
+      // Simulate streaming chunks: "Oh" → "Oh," → "Oh, hello"
+      lexicalElement.setText('Oh');
+      lexicalElement.setText('Oh,');
+      lexicalElement.setText('Oh, hello');
+
+      expect(execCommandMock).toHaveBeenCalledTimes(3);
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        1,
+        'insertText',
+        false,
+        'Oh'
+      );
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        2,
+        'insertText',
+        false,
+        ','
+      );
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        3,
+        'insertText',
+        false,
+        ' hello'
+      );
+    });
+
+    test('should not call selectAll on subsequent calls', () => {
+      const getSelectionSpy = jest.spyOn(window, 'getSelection');
+      execCommandMock.mockReturnValue(true);
+
+      lexicalElement.setText('First');
+      getSelectionSpy.mockClear();
+
+      lexicalElement.setText('First chunk');
+
+      expect(getSelectionSpy).not.toHaveBeenCalled();
     });
 
     test('should dispatch InputEvent as fallback when execCommand fails', () => {
