@@ -2,6 +2,7 @@ import {
   getEditableElement,
   ContentEditableElement,
   InputElement,
+  LexicalElement,
 } from '../editableElements';
 
 describe('getEditableElement', () => {
@@ -32,6 +33,28 @@ describe('getEditableElement', () => {
     const editableElement = getEditableElement(element);
 
     expect(editableElement).toBeNull();
+  });
+
+  test('should return an instance of LexicalElement for a Lexical editor element', () => {
+    const element = createLexicalEditorElement('Some text');
+    const editableElement = getEditableElement(element);
+
+    expect(editableElement).toBeInstanceOf(LexicalElement);
+  });
+
+  test('should return an instance of LexicalElement for a child of a Lexical editor', () => {
+    const container = document.createElement('div');
+    container.setAttribute('data-lexical-editor', 'true');
+    const child = document.createElement('p');
+    child.contentEditable = 'true';
+    patchElement(child);
+    container.appendChild(child);
+    document.body.appendChild(container);
+
+    const editableElement = getEditableElement(child);
+
+    expect(editableElement).toBeInstanceOf(LexicalElement);
+    document.body.removeChild(container);
   });
 
   test('should return null for other HTML elements', () => {
@@ -146,6 +169,137 @@ describe('ContentEditableElement', () => {
     });
   });
 });
+
+describe('LexicalElement', () => {
+  let element: HTMLDivElement;
+  let lexicalElement: LexicalElement;
+  let execCommandMock: jest.Mock;
+
+  beforeEach(() => {
+    // JSDOM does not implement execCommand, so we polyfill it for testing.
+    execCommandMock = jest.fn().mockReturnValue(false);
+    document.execCommand = execCommandMock;
+
+    element = createLexicalEditorElement('Initial text');
+    document.body.appendChild(element);
+    lexicalElement = new LexicalElement(element);
+  });
+
+  afterEach(() => {
+    document.body.removeChild(element);
+    jest.restoreAllMocks();
+  });
+
+  describe('extractText', () => {
+    test('should normalize text the same way as ContentEditableElement', () => {
+      element.innerText = 'Line 1\n\nLine 2\nLine 3\n\n\nLine 4';
+      expect(lexicalElement.extractText()).toBe(
+        'Line 1\nLine 2\nLine 3\nLine 4'
+      );
+    });
+
+    test('should collapse duplicate whitespace', () => {
+      element.innerText = '   Hello   world   ';
+      expect(lexicalElement.extractText()).toBe('Hello world');
+    });
+  });
+
+  describe('setText', () => {
+    test('should use execCommand to insert text through the editing pipeline', () => {
+      execCommandMock.mockReturnValue(true);
+
+      lexicalElement.setText('Hello Lexical');
+
+      expect(execCommandMock).toHaveBeenCalledWith(
+        'insertText',
+        false,
+        'Hello Lexical'
+      );
+    });
+
+    test('should select all content before inserting', () => {
+      const mockRange = {
+        selectNodeContents: jest.fn(),
+      };
+      const mockSelection = {
+        removeAllRanges: jest.fn(),
+        addRange: jest.fn(),
+      };
+      jest
+        .spyOn(document, 'createRange')
+        .mockReturnValue(mockRange as unknown as Range);
+      jest
+        .spyOn(window, 'getSelection')
+        .mockReturnValue(mockSelection as unknown as Selection);
+      execCommandMock.mockReturnValue(true);
+
+      lexicalElement.setText('Replacement text');
+
+      expect(mockRange.selectNodeContents).toHaveBeenCalledWith(element);
+      expect(mockSelection.removeAllRanges).toHaveBeenCalled();
+      expect(mockSelection.addRange).toHaveBeenCalledWith(mockRange);
+    });
+
+    test('should dispatch InputEvent as fallback when execCommand fails', () => {
+      execCommandMock.mockReturnValue(false);
+      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
+
+      lexicalElement.setText('Fallback text');
+
+      const events = dispatchSpy.mock.calls.map(
+        ([event]) => event as InputEvent
+      );
+      expect(events).toHaveLength(2);
+
+      const beforeInput = events[0];
+      expect(beforeInput.type).toBe('beforeinput');
+      expect(beforeInput.inputType).toBe('insertText');
+      expect(beforeInput.data).toBe('Fallback text');
+      expect(beforeInput.bubbles).toBe(true);
+      expect(beforeInput.cancelable).toBe(true);
+
+      const input = events[1];
+      expect(input.type).toBe('input');
+      expect(input.inputType).toBe('insertText');
+      expect(input.data).toBe('Fallback text');
+      expect(input.bubbles).toBe(true);
+    });
+
+    test('should not dispatch InputEvent when execCommand succeeds', () => {
+      execCommandMock.mockReturnValue(true);
+      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
+
+      lexicalElement.setText('Success text');
+
+      // dispatchEvent should not have been called with InputEvent
+      const inputEvents = dispatchSpy.mock.calls.filter(
+        ([event]) => event instanceof InputEvent
+      );
+      expect(inputEvents).toHaveLength(0);
+    });
+
+    test('should focus the element before modifying it', () => {
+      const focusSpy = jest.spyOn(element, 'focus');
+      execCommandMock.mockReturnValue(true);
+
+      lexicalElement.setText('Focused text');
+
+      expect(focusSpy).toHaveBeenCalled();
+    });
+  });
+});
+
+function createLexicalEditorElement(innerText?: string): HTMLDivElement {
+  const element = document.createElement('div');
+  element.contentEditable = 'true';
+  element.setAttribute('data-lexical-editor', 'true');
+  patchElement(element);
+
+  if (innerText) {
+    element.innerText = innerText;
+  }
+  return element;
+}
 
 function createEditableDivElement(innerText?: string): HTMLDivElement {
   const element = document.createElement('div');

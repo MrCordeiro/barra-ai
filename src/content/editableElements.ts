@@ -45,17 +45,89 @@ class ContentEditableElement implements EditableElement {
   }
 
   extractText(): string {
-    const dupNewlines = /\s*\n\s*/g;
-    const dupWhitespace = /\s{2,}/g;
-    return this.element.innerText
-      .replace(dupNewlines, '\n')
-      .replace(dupWhitespace, ' ')
-      .trim();
+    return normalizeContentEditableText(this.element);
   }
 
   setText(newText: string): void {
     this.element.innerText = newText;
   }
+}
+
+/**
+ * Represents a Lexical framework-managed contenteditable element.
+ *
+ * Lexical (used by Reddit, WhatsApp, Facebook) maintains its own internal
+ * state and reconciles it to the DOM. Direct DOM mutations (innerText, etc.)
+ * are silently overwritten. Instead, we must go through the browser's editing
+ * pipeline so the framework can intercept and process the change.
+ */
+class LexicalElement implements EditableElement {
+  private element: HTMLElement;
+
+  constructor(element: HTMLElement) {
+    this.element = element;
+  }
+
+  extractText(): string {
+    return normalizeContentEditableText(this.element);
+  }
+
+  setText(newText: string): void {
+    this.element.focus();
+    this.selectAll();
+
+    // execCommand fires beforeinput/input events that Lexical intercepts.
+    // It is deprecated but remains the only reliable way to trigger the
+    // browser's full editing pipeline programmatically.
+    if (!document.execCommand('insertText', false, newText)) {
+      this.dispatchTextInput(newText);
+    }
+  }
+
+  private selectAll(): void {
+    const selection = window.getSelection();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(this.element);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  private dispatchTextInput(text: string): void {
+    this.element.dispatchEvent(
+      new InputEvent('beforeinput', {
+        inputType: 'insertText',
+        data: text,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      })
+    );
+    this.element.dispatchEvent(
+      new InputEvent('input', {
+        inputType: 'insertText',
+        data: text,
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+}
+
+function normalizeContentEditableText(element: HTMLElement): string {
+  const dupNewlines = /\s*\n\s*/g;
+  const dupWhitespace = /\s{2,}/g;
+  return element.innerText
+    .replace(dupNewlines, '\n')
+    .replace(dupWhitespace, ' ')
+    .trim();
+}
+
+function isLexicalEditor(element: HTMLElement): boolean {
+  return (
+    element.hasAttribute('data-lexical-editor') ||
+    !!element.closest('[data-lexical-editor]')
+  );
 }
 
 /**
@@ -74,10 +146,18 @@ function getEditableElement(element: HTMLElement): EditableElement | null {
   } else if (element.tagName === 'TEXTAREA') {
     return new InputElement(element as HTMLTextAreaElement);
   } else if (element.isContentEditable) {
+    if (isLexicalEditor(element)) {
+      return new LexicalElement(element);
+    }
     return new ContentEditableElement(element);
   }
   return null;
 }
 
 export type { EditableElement };
-export { InputElement, ContentEditableElement, getEditableElement };
+export {
+  InputElement,
+  ContentEditableElement,
+  LexicalElement,
+  getEditableElement,
+};
