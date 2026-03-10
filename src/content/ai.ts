@@ -21,14 +21,24 @@ async function fetchAIMockResponse(): Promise<string> {
  *
  * @param prompt The prompt to be sent
  */
-export async function fetchAIResponse(prompt: string): Promise<string> {
+export async function fetchAIResponse(
+  prompt: string,
+  onChunk?: (chunk: string) => void
+): Promise<string> {
   if (USE_MOCK) {
-    return fetchAIMockResponse();
+    const response = await fetchAIMockResponse();
+    onChunk?.(response);
+    return response;
   }
   const { modelName } = await chromeStorage.get(['modelName']);
-  const resolvedModel = (modelName as string) || DEFAULT_LLM_MODEL.value;
+  const resolvedModel = modelName || DEFAULT_LLM_MODEL.value;
   if (getProviderForModel(resolvedModel) === 'anthropic') {
-    return fetchAnthropicResponse(prompt, resolvedModel, chromeStorage);
+    return fetchAnthropicResponse(
+      prompt,
+      resolvedModel,
+      chromeStorage,
+      onChunk
+    );
   }
-  return fetchGptResponse(prompt, resolvedModel, chromeStorage);
+  return fetchGptResponse(prompt, resolvedModel, chromeStorage, onChunk);
 }

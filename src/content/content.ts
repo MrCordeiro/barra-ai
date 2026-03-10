@@ -29,9 +29,12 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   const prompt = createPrompt(text);
 
-  fetchAIResponse(prompt)
+  let accumulatedText = '';
+  fetchAIResponse(prompt, chunk => {
+    accumulatedText += chunk;
+    element.setText(accumulatedText);
+  })
     .then(response => {
-      element.setText(response);
       console.log(response);
     })
     .catch((error: Error) => {

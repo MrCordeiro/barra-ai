@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { chromeStorage } from '../../storages';
 import { fetchAnthropicResponse } from '../anthropic';
+import { makeStream } from '../../../jest/streamTestUtils';
+
+function anthropicChunk(text: string): string {
+  return `data: ${JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text } })}`;
+}
 
 describe('fetchAnthropicResponse', () => {
   beforeAll(() => {
@@ -16,30 +21,24 @@ describe('fetchAnthropicResponse', () => {
   });
 
   test('should return the parsed Anthropic response', async () => {
-    const prompt = 'Write a LinkedIn post about AI';
-    const mockResponse = {
-      id: 'msg_test',
-      type: 'message',
-      role: 'assistant',
-      content: [{ type: 'text', text: 'A LinkedIn post about AI' }],
-      model: 'claude-sonnet-4-6',
-      stop_reason: 'end_turn',
-      usage: { input_tokens: 10, output_tokens: 20 },
-    };
     global.fetch = jest.fn().mockImplementationOnce(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(mockResponse),
+        body: makeStream([
+          anthropicChunk('A LinkedIn post '),
+          anthropicChunk('about AI'),
+          `data: ${JSON.stringify({ type: 'message_stop' })}`,
+        ]),
       })
     );
 
     const response = await fetchAnthropicResponse(
-      prompt,
+      'Write a LinkedIn post about AI',
       'claude-sonnet-4-6',
       chromeStorage
     );
 
-    expect(response).toBe(mockResponse.content[0].text);
+    expect(response).toBe('A LinkedIn post about AI');
     expect(global.fetch).toHaveBeenCalledWith(
       'https://api.anthropic.com/v1/messages',
       expect.objectContaining({
@@ -49,10 +48,54 @@ describe('fetchAnthropicResponse', () => {
           'anthropic-version': '2023-06-01',
         }),
         body: expect.stringContaining(
-          JSON.stringify({ role: 'user', content: prompt })
+          JSON.stringify({
+            role: 'user',
+            content: 'Write a LinkedIn post about AI',
+          })
         ),
       })
     );
+  });
+
+  test('should include stream: true in the request body', async () => {
+    global.fetch = jest.fn().mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true,
+        body: makeStream([`data: ${JSON.stringify({ type: 'message_stop' })}`]),
+      })
+    );
+
+    await fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage);
+
+    const calls = (global.fetch as jest.Mock).mock.calls as [
+      string,
+      { body: string },
+    ][];
+    const body = JSON.parse(calls[0][1].body) as Record<string, unknown>;
+    expect(body.stream).toBe(true);
+  });
+
+  test('should call onChunk for each text delta', async () => {
+    global.fetch = jest.fn().mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true,
+        body: makeStream([
+          anthropicChunk('Hello'),
+          anthropicChunk(' world'),
+          `data: ${JSON.stringify({ type: 'message_stop' })}`,
+        ]),
+      })
+    );
+
+    const chunks: string[] = [];
+    await fetchAnthropicResponse(
+      'prompt',
+      'claude-sonnet-4-6',
+      chromeStorage,
+      chunk => chunks.push(chunk)
+    );
+
+    expect(chunks).toEqual(['Hello', ' world']);
   });
 
   test('should throw an error when the response is not ok', async () => {
@@ -80,5 +123,15 @@ describe('fetchAnthropicResponse', () => {
     await expect(
       fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
     ).rejects.toThrow('API Key or Model Name is not set');
+  });
+
+  test('should throw when response body is null', async () => {
+    global.fetch = jest
+      .fn()
+      .mockImplementationOnce(() => Promise.resolve({ ok: true, body: null }));
+
+    await expect(
+      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
+    ).rejects.toThrow('Anthropic response has no body');
   });
 });

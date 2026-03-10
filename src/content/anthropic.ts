@@ -1,16 +1,15 @@
 'use strict';
 
 import { Storage, chromeStorage } from '../storages';
+import { parseSSEStream } from './sseParser';
 
-interface AnthropicResponse {
-  id: string;
-  type: string;
-  role: string;
-  content: { type: string; text: string }[];
-  model: string;
-  stop_reason: string;
-  usage: { input_tokens: number; output_tokens: number };
+interface AnthropicErrorResponse {
   error?: { type: string; message: string };
+}
+
+interface AnthropicStreamChunk {
+  type: string;
+  delta?: { type: string; text: string };
 }
 
 /**
@@ -19,11 +18,13 @@ interface AnthropicResponse {
  * @param prompt The prompt to be sent
  * @param modelName The model to use
  * @param storage Storage instance for reading credentials
+ * @param onChunk Called with each text chunk as it arrives
  */
 export async function fetchAnthropicResponse(
   prompt: string,
   modelName: string,
-  storage: Storage
+  storage: Storage,
+  onChunk?: (chunk: string) => void
 ): Promise<string> {
   const { anthropicApiKey } = await getSettings(storage);
   const requestOptions = {
@@ -38,6 +39,7 @@ export async function fetchAnthropicResponse(
       max_tokens: 200,
       system: 'You are a savvy writer.',
       messages: [{ role: 'user', content: prompt }],
+      stream: true,
     }),
   };
 
@@ -45,11 +47,23 @@ export async function fetchAnthropicResponse(
     'https://api.anthropic.com/v1/messages',
     requestOptions
   );
-  const data = (await response.json()) as AnthropicResponse;
   if (!response.ok) {
+    const data = (await response.json()) as AnthropicErrorResponse;
     throw new Error(`Failed to connect to Anthropic. ${data.error!.message}`);
   }
-  return data.content[0].text;
+
+  if (!response.body) throw new Error('Anthropic response has no body');
+  return parseSSEStream(response.body, raw => {
+    const chunk = JSON.parse(raw) as AnthropicStreamChunk;
+    if (
+      chunk.type !== 'content_block_delta' ||
+      chunk.delta?.type !== 'text_delta'
+    )
+      return '';
+    const text = chunk.delta.text;
+    if (text) onChunk?.(text);
+    return text;
+  });
 }
 
 async function getSettings(storage: Storage) {

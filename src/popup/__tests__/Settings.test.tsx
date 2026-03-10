@@ -33,6 +33,8 @@ const mockStorage: Storage & { savedData?: Record<string, string> } = {
       resolve();
     });
   },
+  addChangeListener: jest.fn(),
+  removeChangeListener: jest.fn(),
 };
 
 // Get the first OpenAI model that is not the default model

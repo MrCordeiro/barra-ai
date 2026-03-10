@@ -63,7 +63,10 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
       fetchAnthropicResponse: mockFetchAnthropicResponse,
     }));
     return require('../ai') as {
-      fetchAIResponse: (p: string) => Promise<string>;
+      fetchAIResponse: (
+        p: string,
+        onChunk?: (chunk: string) => void
+      ) => Promise<string>;
     };
   }
 
@@ -78,13 +81,15 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
   test('routes to OpenAI for a GPT model', async () => {
     mockFetchGptResponse.mockResolvedValue('gpt response');
     const { fetchAIResponse } = loadModule('gpt-4o-mini');
+    const onChunk = jest.fn();
 
-    await fetchAIResponse('test prompt');
+    await fetchAIResponse('test prompt', onChunk);
 
     expect(mockFetchGptResponse).toHaveBeenCalledWith(
       'test prompt',
       'gpt-4o-mini',
-      expect.anything()
+      expect.anything(),
+      onChunk
     );
     expect(mockFetchAnthropicResponse).not.toHaveBeenCalled();
   });
@@ -92,13 +97,15 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
   test('routes to Anthropic for a Claude model', async () => {
     mockFetchAnthropicResponse.mockResolvedValue('claude response');
     const { fetchAIResponse } = loadModule('claude-sonnet-4-6');
+    const onChunk = jest.fn();
 
-    await fetchAIResponse('test prompt');
+    await fetchAIResponse('test prompt', onChunk);
 
     expect(mockFetchAnthropicResponse).toHaveBeenCalledWith(
       'test prompt',
       'claude-sonnet-4-6',
-      expect.anything()
+      expect.anything(),
+      onChunk
     );
     expect(mockFetchGptResponse).not.toHaveBeenCalled();
   });
@@ -106,13 +113,15 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
   test('falls back to OpenAI for an unknown model', async () => {
     mockFetchGptResponse.mockResolvedValue('gpt response');
     const { fetchAIResponse } = loadModule('unknown-model');
+    const onChunk = jest.fn();
 
-    await fetchAIResponse('test prompt');
+    await fetchAIResponse('test prompt', onChunk);
 
     expect(mockFetchGptResponse).toHaveBeenCalledWith(
       'test prompt',
       'unknown-model',
-      expect.anything()
+      expect.anything(),
+      onChunk
     );
     expect(mockFetchAnthropicResponse).not.toHaveBeenCalled();
   });
