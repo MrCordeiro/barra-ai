@@ -106,32 +106,18 @@ class LexicalElement implements EditableElement {
   }
 
   private insertViaEditingPipeline(text: string): void {
-    // execCommand fires beforeinput/input events that Lexical intercepts.
-    // It is deprecated but remains the only reliable way to trigger the
-    // browser's full editing pipeline programmatically.
-    if (!document.execCommand('insertText', false, text)) {
-      this.dispatchTextInput(text);
+    // Split on newlines and use insertParagraph for line breaks.
+    // Lexical silently drops '\n' characters passed to insertText,
+    // but correctly handles the insertParagraph input type.
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (i > 0) {
+        document.execCommand('insertParagraph', false, '');
+      }
+      if (lines[i].length > 0) {
+        document.execCommand('insertText', false, lines[i]);
+      }
     }
-  }
-
-  private dispatchTextInput(text: string): void {
-    this.element.dispatchEvent(
-      new InputEvent('beforeinput', {
-        inputType: 'insertText',
-        data: text,
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-      })
-    );
-    this.element.dispatchEvent(
-      new InputEvent('input', {
-        inputType: 'insertText',
-        data: text,
-        bubbles: true,
-        composed: true,
-      })
-    );
   }
 }
 

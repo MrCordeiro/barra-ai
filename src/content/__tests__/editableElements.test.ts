@@ -281,42 +281,93 @@ describe('LexicalElement', () => {
       expect(getSelectionSpy).not.toHaveBeenCalled();
     });
 
-    test('should dispatch InputEvent as fallback when execCommand fails', () => {
-      execCommandMock.mockReturnValue(false);
-      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
+    test('should use insertParagraph for newlines in text', () => {
+      execCommandMock.mockReturnValue(true);
 
-      lexicalElement.setText('Fallback text');
+      lexicalElement.setText('Line 1\nLine 2\nLine 3');
 
-      const events = dispatchSpy.mock.calls.map(
-        ([event]) => event as InputEvent
+      expect(execCommandMock).toHaveBeenCalledWith(
+        'insertText',
+        false,
+        'Line 1'
       );
-      expect(events).toHaveLength(2);
-
-      const beforeInput = events[0];
-      expect(beforeInput.type).toBe('beforeinput');
-      expect(beforeInput.inputType).toBe('insertText');
-      expect(beforeInput.data).toBe('Fallback text');
-      expect(beforeInput.bubbles).toBe(true);
-      expect(beforeInput.cancelable).toBe(true);
-
-      const input = events[1];
-      expect(input.type).toBe('input');
-      expect(input.inputType).toBe('insertText');
-      expect(input.data).toBe('Fallback text');
-      expect(input.bubbles).toBe(true);
+      expect(execCommandMock).toHaveBeenCalledWith(
+        'insertParagraph',
+        false,
+        ''
+      );
+      expect(execCommandMock).toHaveBeenCalledWith(
+        'insertText',
+        false,
+        'Line 2'
+      );
+      expect(execCommandMock).toHaveBeenCalledWith(
+        'insertText',
+        false,
+        'Line 3'
+      );
     });
 
-    test('should not dispatch InputEvent when execCommand succeeds', () => {
+    test('should handle newlines in streaming deltas', () => {
       execCommandMock.mockReturnValue(true);
-      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
 
-      lexicalElement.setText('Success text');
+      // First chunk: no newline
+      lexicalElement.setText('Hello');
+      // Second chunk: includes a newline
+      lexicalElement.setText('Hello\nWorld');
 
-      // dispatchEvent should not have been called with InputEvent
-      const inputEvents = dispatchSpy.mock.calls.filter(
-        ([event]) => event instanceof InputEvent
+      // First call: insertText "Hello"
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        1,
+        'insertText',
+        false,
+        'Hello'
       );
-      expect(inputEvents).toHaveLength(0);
+      // Second call delta is "\nWorld": insertParagraph, then insertText "World"
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        2,
+        'insertParagraph',
+        false,
+        ''
+      );
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        3,
+        'insertText',
+        false,
+        'World'
+      );
+    });
+
+    test('should handle consecutive newlines for empty paragraphs', () => {
+      execCommandMock.mockReturnValue(true);
+
+      lexicalElement.setText('A\n\nB');
+
+      expect(execCommandMock).toHaveBeenCalledTimes(4);
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        1,
+        'insertText',
+        false,
+        'A'
+      );
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        2,
+        'insertParagraph',
+        false,
+        ''
+      );
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        3,
+        'insertParagraph',
+        false,
+        ''
+      );
+      expect(execCommandMock).toHaveBeenNthCalledWith(
+        4,
+        'insertText',
+        false,
+        'B'
+      );
     });
 
     test('should focus the element before modifying it', () => {
