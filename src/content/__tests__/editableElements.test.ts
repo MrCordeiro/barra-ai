@@ -247,7 +247,12 @@ describe('LexicalElement', () => {
     });
 
     test('should select all content on the first call to replace the trigger text', () => {
+      element.innerHTML = '';
+      element.appendChild(document.createTextNode('Initial text'));
+
       const mockRange = {
+        setStart: jest.fn(),
+        setEnd: jest.fn(),
         selectNodeContents: jest.fn(),
       };
       const mockSelection = {
@@ -263,9 +268,30 @@ describe('LexicalElement', () => {
 
       lexicalElement.setText('Replacement text');
 
-      expect(mockRange.selectNodeContents).toHaveBeenCalledWith(element);
+      expect(mockRange.setStart).toHaveBeenCalledWith(expect.any(Text), 0);
+      expect(mockRange.setEnd).toHaveBeenCalledWith(
+        expect.any(Text),
+        'Initial text'.length
+      );
+      expect(mockRange.selectNodeContents).not.toHaveBeenCalled();
       expect(mockSelection.removeAllRanges).toHaveBeenCalled();
       expect(mockSelection.addRange).toHaveBeenCalledWith(mockRange);
+    });
+
+    test('should resolve to lexical root when constructed from a child element', () => {
+      const child = document.createElement('span');
+      child.textContent = 'Initial text';
+      element.innerHTML = '';
+      element.appendChild(child);
+
+      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
+      const lexicalFromChild = new LexicalElement(child);
+
+      lexicalFromChild.setText('Root paste');
+
+      const pasteEvents = getPasteEvents(dispatchSpy);
+      expect(pasteEvents).toHaveLength(1);
+      expect(getPastedText(pasteEvents[0])).toBe('Root paste');
     });
 
     test('should only paste the delta on subsequent calls', () => {
@@ -292,6 +318,19 @@ describe('LexicalElement', () => {
       lexicalElement.setText('First chunk');
 
       expect(getSelectionSpy).not.toHaveBeenCalled();
+    });
+
+    test('should keep streaming as delta even if the prompt text remains in the editor', () => {
+      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
+      element.innerText = '/ai tell me what does the fox say';
+
+      lexicalElement.setText('Sure');
+      lexicalElement.setText('Sure thing!');
+
+      const pasteEvents = getPasteEvents(dispatchSpy);
+      expect(pasteEvents).toHaveLength(2);
+      expect(getPastedText(pasteEvents[0])).toBe('Sure');
+      expect(getPastedText(pasteEvents[1])).toBe(' thing!');
     });
 
     test('should preserve newlines in pasted text', () => {
