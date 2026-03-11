@@ -173,12 +173,31 @@ describe('ContentEditableElement', () => {
 describe('LexicalElement', () => {
   let element: HTMLDivElement;
   let lexicalElement: LexicalElement;
-  let execCommandMock: jest.Mock;
 
   beforeEach(() => {
-    // JSDOM does not implement execCommand, so we polyfill it for testing.
-    execCommandMock = jest.fn().mockReturnValue(false);
-    document.execCommand = execCommandMock;
+    // JSDOM does not implement DataTransfer or ClipboardEvent, so we
+    // polyfill them for testing.
+    if (typeof globalThis.DataTransfer === 'undefined') {
+      globalThis.DataTransfer = class DataTransfer {
+        private data = new Map<string, string>();
+        setData(format: string, value: string) {
+          this.data.set(format, value);
+        }
+        getData(format: string) {
+          return this.data.get(format) ?? '';
+        }
+      } as unknown as typeof globalThis.DataTransfer;
+    }
+    if (typeof globalThis.ClipboardEvent === 'undefined') {
+      globalThis.ClipboardEvent = class ClipboardEvent extends Event {
+        readonly clipboardData: DataTransfer | null;
+        constructor(type: string, init?: ClipboardEventInit) {
+          super(type, init);
+          this.clipboardData =
+            (init as { clipboardData?: DataTransfer })?.clipboardData ?? null;
+        }
+      } as unknown as typeof globalThis.ClipboardEvent;
+    }
 
     element = createLexicalEditorElement('Initial text');
     document.body.appendChild(element);
@@ -205,16 +224,26 @@ describe('LexicalElement', () => {
   });
 
   describe('setText', () => {
-    test('should use execCommand to insert text through the editing pipeline', () => {
-      execCommandMock.mockReturnValue(true);
+    function getPasteEvents(spy: jest.SpyInstance): ClipboardEvent[] {
+      return spy.mock.calls
+        .map(([event]: [Event]) => event)
+        .filter((e: Event): e is ClipboardEvent => e instanceof ClipboardEvent);
+    }
+
+    function getPastedText(event: ClipboardEvent): string | undefined {
+      return event.clipboardData?.getData('text/plain');
+    }
+
+    test('should dispatch a paste ClipboardEvent with the text', () => {
+      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
 
       lexicalElement.setText('Hello Lexical');
 
-      expect(execCommandMock).toHaveBeenCalledWith(
-        'insertText',
-        false,
-        'Hello Lexical'
-      );
+      const pasteEvents = getPasteEvents(dispatchSpy);
+      expect(pasteEvents).toHaveLength(1);
+      expect(getPastedText(pasteEvents[0])).toBe('Hello Lexical');
+      expect(pasteEvents[0].bubbles).toBe(true);
+      expect(pasteEvents[0].cancelable).toBe(true);
     });
 
     test('should select all content on the first call to replace the trigger text', () => {
@@ -231,7 +260,6 @@ describe('LexicalElement', () => {
       jest
         .spyOn(window, 'getSelection')
         .mockReturnValue(mockSelection as unknown as Selection);
-      execCommandMock.mockReturnValue(true);
 
       lexicalElement.setText('Replacement text');
 
@@ -240,38 +268,23 @@ describe('LexicalElement', () => {
       expect(mockSelection.addRange).toHaveBeenCalledWith(mockRange);
     });
 
-    test('should only insert the delta on subsequent calls', () => {
-      execCommandMock.mockReturnValue(true);
+    test('should only paste the delta on subsequent calls', () => {
+      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
 
       // Simulate streaming chunks: "Oh" → "Oh," → "Oh, hello"
       lexicalElement.setText('Oh');
       lexicalElement.setText('Oh,');
       lexicalElement.setText('Oh, hello');
 
-      expect(execCommandMock).toHaveBeenCalledTimes(3);
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        1,
-        'insertText',
-        false,
-        'Oh'
-      );
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        2,
-        'insertText',
-        false,
-        ','
-      );
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        3,
-        'insertText',
-        false,
-        ' hello'
-      );
+      const pasteEvents = getPasteEvents(dispatchSpy);
+      expect(pasteEvents).toHaveLength(3);
+      expect(getPastedText(pasteEvents[0])).toBe('Oh');
+      expect(getPastedText(pasteEvents[1])).toBe(',');
+      expect(getPastedText(pasteEvents[2])).toBe(' hello');
     });
 
     test('should not call selectAll on subsequent calls', () => {
       const getSelectionSpy = jest.spyOn(window, 'getSelection');
-      execCommandMock.mockReturnValue(true);
 
       lexicalElement.setText('First');
       getSelectionSpy.mockClear();
@@ -281,98 +294,30 @@ describe('LexicalElement', () => {
       expect(getSelectionSpy).not.toHaveBeenCalled();
     });
 
-    test('should use insertParagraph for newlines in text', () => {
-      execCommandMock.mockReturnValue(true);
+    test('should preserve newlines in pasted text', () => {
+      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
 
       lexicalElement.setText('Line 1\nLine 2\nLine 3');
 
-      expect(execCommandMock).toHaveBeenCalledWith(
-        'insertText',
-        false,
-        'Line 1'
-      );
-      expect(execCommandMock).toHaveBeenCalledWith(
-        'insertParagraph',
-        false,
-        ''
-      );
-      expect(execCommandMock).toHaveBeenCalledWith(
-        'insertText',
-        false,
-        'Line 2'
-      );
-      expect(execCommandMock).toHaveBeenCalledWith(
-        'insertText',
-        false,
-        'Line 3'
-      );
+      const pasteEvents = getPasteEvents(dispatchSpy);
+      expect(pasteEvents).toHaveLength(1);
+      expect(getPastedText(pasteEvents[0])).toBe('Line 1\nLine 2\nLine 3');
     });
 
     test('should handle newlines in streaming deltas', () => {
-      execCommandMock.mockReturnValue(true);
+      const dispatchSpy = jest.spyOn(element, 'dispatchEvent');
 
-      // First chunk: no newline
       lexicalElement.setText('Hello');
-      // Second chunk: includes a newline
       lexicalElement.setText('Hello\nWorld');
 
-      // First call: insertText "Hello"
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        1,
-        'insertText',
-        false,
-        'Hello'
-      );
-      // Second call delta is "\nWorld": insertParagraph, then insertText "World"
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        2,
-        'insertParagraph',
-        false,
-        ''
-      );
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        3,
-        'insertText',
-        false,
-        'World'
-      );
-    });
-
-    test('should handle consecutive newlines for empty paragraphs', () => {
-      execCommandMock.mockReturnValue(true);
-
-      lexicalElement.setText('A\n\nB');
-
-      expect(execCommandMock).toHaveBeenCalledTimes(4);
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        1,
-        'insertText',
-        false,
-        'A'
-      );
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        2,
-        'insertParagraph',
-        false,
-        ''
-      );
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        3,
-        'insertParagraph',
-        false,
-        ''
-      );
-      expect(execCommandMock).toHaveBeenNthCalledWith(
-        4,
-        'insertText',
-        false,
-        'B'
-      );
+      const pasteEvents = getPasteEvents(dispatchSpy);
+      expect(pasteEvents).toHaveLength(2);
+      expect(getPastedText(pasteEvents[0])).toBe('Hello');
+      expect(getPastedText(pasteEvents[1])).toBe('\nWorld');
     });
 
     test('should focus the element before modifying it', () => {
       const focusSpy = jest.spyOn(element, 'focus');
-      execCommandMock.mockReturnValue(true);
 
       lexicalElement.setText('Focused text');
 

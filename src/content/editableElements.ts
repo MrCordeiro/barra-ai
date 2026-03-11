@@ -78,18 +78,16 @@ class LexicalElement implements EditableElement {
 
     if (this.insertedLength === 0) {
       // First call: select all existing content (the /ai command) and replace.
-      // This works because Lexical's internal selection still matches the DOM
-      // at this point (no prior programmatic edits have desynchronised them).
+      // Lexical's editor.update() syncs the DOM selection into its internal
+      // state before running the paste handler, so selectAll() works here.
       this.selectAll();
-      this.insertViaEditingPipeline(newText);
+      this.pasteText(newText);
     } else {
       // Subsequent calls: Lexical's cursor is already at the end of the
-      // previously inserted text, so we only insert the new delta.
-      // Calling selectAll here would fail because Lexical's internal selection
-      // would not match the DOM selection we set programmatically.
+      // previously inserted text, so we only paste the new delta.
       const delta = newText.substring(this.insertedLength);
       if (delta) {
-        this.insertViaEditingPipeline(delta);
+        this.pasteText(delta);
       }
     }
 
@@ -105,19 +103,22 @@ class LexicalElement implements EditableElement {
     selection.addRange(range);
   }
 
-  private insertViaEditingPipeline(text: string): void {
-    // Split on newlines and use insertParagraph for line breaks.
-    // Lexical silently drops '\n' characters passed to insertText,
-    // but correctly handles the insertParagraph input type.
-    const lines = text.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      if (i > 0) {
-        document.execCommand('insertParagraph', false, '');
-      }
-      if (lines[i].length > 0) {
-        document.execCommand('insertText', false, lines[i]);
-      }
-    }
+  private pasteText(text: string): void {
+    // Simulate a clipboard paste. Lexical's paste handler reads
+    // clipboardData, splits on newlines to create paragraphs, and
+    // replaces the current selection — exactly the behaviour we need.
+    // Unlike execCommand (deprecated, newlines silently dropped),
+    // paste events are a stable, well-supported API.
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', text);
+    // ClipboardEventInit typings omit clipboardData, but all browsers
+    // support it in the constructor. Cast to work around the gap.
+    const init = {
+      clipboardData: dataTransfer,
+      bubbles: true,
+      cancelable: true,
+    } as ClipboardEventInit;
+    this.element.dispatchEvent(new ClipboardEvent('paste', init));
   }
 }
 
