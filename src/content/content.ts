@@ -27,6 +27,11 @@ function handleKeyDown(event: KeyboardEvent): void {
   const text = element.extractText();
   if (!text?.startsWith(AI_COMMAND)) return;
 
+  // Keep focus and selection stable while the streaming replacement starts.
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+
   const prompt = createPrompt(text);
 
   let accumulatedText = '';

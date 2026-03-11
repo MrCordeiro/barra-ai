@@ -2,7 +2,7 @@
 
 Welcome to Barra AI, the most straightforward, no-frills, barebones AI browser extension you'll ever need. We've cut the fluff and focused on raw AI power. No subscriptions, no cute robots, just you and the ramblings of you OpenAI model of choice.
 
-Type `/ai ` followed by your prompt in **any input or text field**, press Tab, and the extension will fetch a response from the GPT model, replacing the field's content with the AI-generated answer.
+Type `/ai ` followed by your prompt in **any input or text field**, press Tab, and the extension will fetch a streamed response from your selected model, updating the field as chunks arrive.
 
 ("barra" means "slash" in Portuguese, as in `/ai`)
 
@@ -11,7 +11,8 @@ Type `/ai ` followed by your prompt in **any input or text field**, press Tab, a
 ### 🦖 Dino-powered simplicity
 
 - **No popups, no sidebars**: Type /ai followed by your prompt in any text field and hit Tab. Boom! Instant AI response.
-- **Works everywhere (almost)**: Integrated seamlessly with most input fields on the web. Sorry, Meta users (Facebook, Instagram, Threads), we're working on it!
+- **Streaming output**: Watch the model response appear in real time.
+- **Works with Lexical editors**: Includes Reddit, WhatsApp, Facebook, Instagram, and Threads.
 - **Bring your own key**: No hidden fees. No subscriptions. No limit usage.
 - **Client-side processing**: All the data is stored in your browser's local storage. Requests to Open AI's API is sent directly from your current browser. We don't touch your data – everything happens right in your browser. Doubt us? Just [check the code](https://github.com/MrCordeiro/barra-ai), we are open-source!
 - **Free and open-source**: While all browsers will soon offer this feature natively, Barra AI gives you a taste of the punk future now. And for free!
@@ -42,19 +43,14 @@ Type `/ai ` followed by your prompt in **any input or text field**, press Tab, a
 
 3. Usage:
 
-- In any text input or field, type `/ai`followed by your prompt.
+- In any text input or field, type `/ai` followed by your prompt.
 - Press the `Tab` key.
-- The field's content will be replaced with the AI-generated response.
+- The field's content is replaced progressively as the streamed response arrives.
 
 ## Limitations
 
-Barra AI currently does not work with sites that use the Lexical editor framework. This includes:
-
-- Reddit
-- Whatsapp
-- Facebook
-- Instagram
-- Threads
+- Some highly customized editors may still block synthetic paste events or override key handling.
+- If a page aggressively remaps `Tab`, click the target field again and retry `/ai` + `Tab`.
 
 ## Development
 
