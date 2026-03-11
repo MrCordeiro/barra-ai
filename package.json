@@ -1,7 +1,7 @@
 {
   "name": "barra-ai",
   "version": "1.2.0",
-  "description": "Type '/ai' let Barrasaur fetch GPT to help you",
+  "description": "Barra/AI - summon AI with a slash",
   "private": true,
   "type": "module",
   "scripts": {
