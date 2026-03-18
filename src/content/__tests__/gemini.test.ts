@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { chromeStorage } from '../../storages';
 import { fetchGeminiResponse } from '../gemini';
 import { makeStream } from '../../../jest/streamTestUtils';
