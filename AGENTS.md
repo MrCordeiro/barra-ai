@@ -27,6 +27,7 @@ These require explicit written permission from the project owner to override.
    npm run lint
    ```
 3. **No new dependencies without approval.** Do not add to `dependencies` or `devDependencies` in `package.json`. If a dependency is genuinely needed, propose it and wait for explicit approval before installing.
+4. **Never commit `package-lock.json` changes.** Do not stage or commit modifications to `package-lock.json` unless you are explicitly adding or upgrading a dependency that has been approved.
 
 ---
 
@@ -42,6 +43,7 @@ The codebase has clear separation of concerns. Maintain it.
 | AI routing              | `src/content/ai.ts`               | `fetchAIResponse` entry point, `USE_MOCK`, provider dispatch |
 | AI provider — OpenAI    | `src/content/openai.ts`           | OpenAI API calls and response parsing only                   |
 | AI provider — Anthropic | `src/content/anthropic.ts`        | Anthropic Messages API calls and response parsing only       |
+| AI provider — Gemini    | `src/content/gemini.ts`           | Google Gemini API calls and SSE response parsing only        |
 | Storage                 | `src/storages.ts`                 | All Chrome storage access through the `Storage` interface    |
 | Background              | `src/background/`                 | Notifications and error surfacing only                       |
 | Popup UI                | `src/popup/`                      | Settings and onboarding only                                 |
@@ -49,9 +51,9 @@ The codebase has clear separation of concerns. Maintain it.
 ### Patterns to follow
 
 - **New element types** → implement `EditableElement` interface, don't add ad-hoc DOM manipulation in `content.ts`.
-- **New AI providers** → add a new `src/content/<provider>.ts` module modeled on `openai.ts`; register the provider's models in `src/models.ts`; add routing in `src/content/ai.ts`. Use the `Storage` interface for credentials, not hardcoded values.
+- **New AI providers** → add a new `src/content/<provider>.ts` module modeled on `openai.ts`; register the provider's models in `src/models.ts`; add routing in `src/content/ai.ts`. Use the `Storage` interface for credentials, not hardcoded values. See `gemini.ts` as a recent example.
 - **Storage access** → always go through the `Storage` interface, never call `chrome.storage` directly outside of `storages.ts`.
-- **Mock support** → `USE_MOCK` is resolved once in `ai.ts`. Provider modules (`openai.ts`, `anthropic.ts`) do not need to handle it — keep mock logic out of provider files.
+- **Mock support** → `USE_MOCK` is resolved once in `ai.ts`. Provider modules (`openai.ts`, `anthropic.ts`, `gemini.ts`) do not need to handle it — keep mock logic out of provider files.
 
 ---
 
