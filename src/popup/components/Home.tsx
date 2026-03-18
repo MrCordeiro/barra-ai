@@ -11,6 +11,7 @@ import {
 } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
 import { chromeStorage, type StorageChangeListener } from '../../storages';
+import { PROVIDER_CONFIG, Provider } from '../../models';
 
 interface Props {
   hasApiKey?: boolean;
@@ -25,15 +26,14 @@ const Home = ({ hasApiKey = true }: Props) => {
       return;
     }
 
+    const apiKeyStorageKeys = (Object.keys(PROVIDER_CONFIG) as Provider[]).map(
+      p => PROVIDER_CONFIG[p].storageKey
+    );
     const checkStorage = () => {
       chromeStorage
-        .get(['openaiApiKey', 'anthropicApiKey', 'geminiApiKey'])
+        .get(apiKeyStorageKeys)
         .then(result => {
-          setShowWarning(
-            !result.openaiApiKey &&
-              !result.anthropicApiKey &&
-              !result.geminiApiKey
-          );
+          setShowWarning(apiKeyStorageKeys.every(key => !result[key]));
         })
         .catch((error: Error) => {
           console.error(`Error loading settings: ${error.message}`);
@@ -44,12 +44,7 @@ const Home = ({ hasApiKey = true }: Props) => {
 
     const handleStorageChange: StorageChangeListener = (changes, areaName) => {
       if (areaName !== 'local') return;
-      if (
-        !('openaiApiKey' in changes) &&
-        !('anthropicApiKey' in changes) &&
-        !('geminiApiKey' in changes)
-      )
-        return;
+      if (apiKeyStorageKeys.every(key => !(key in changes))) return;
       checkStorage();
     };
 

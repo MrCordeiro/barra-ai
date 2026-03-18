@@ -29,11 +29,12 @@ export async function fetchGeminiResponse(
   onChunk?: (chunk: string) => void
 ): Promise<string> {
   const { geminiApiKey } = await getSettings(storage);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${geminiApiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse`;
   const requestOptions = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-goog-api-key': geminiApiKey,
     },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -44,8 +45,14 @@ export async function fetchGeminiResponse(
 
   const response = await fetch(url, requestOptions);
   if (!response.ok) {
-    const data = (await response.json()) as GeminiErrorResponse;
-    throw new Error(`Failed to connect to Gemini. ${data.error!.message}`);
+    let message = response.statusText;
+    try {
+      const data = (await response.json()) as GeminiErrorResponse;
+      message = data.error?.message ?? message;
+    } catch {
+      // JSON parsing failed; fall back to statusText
+    }
+    throw new Error(`Failed to connect to Gemini. ${message}`);
   }
 
   if (!response.body) throw new Error('Gemini response has no body');

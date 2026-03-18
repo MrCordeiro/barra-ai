@@ -47,6 +47,10 @@ const anthropicModel = LLM_MODEL_OPTIONS.find(
   model => model.provider === 'anthropic'
 )!.value;
 
+const geminiModel = LLM_MODEL_OPTIONS.find(
+  model => model.provider === 'gemini'
+)!.value;
+
 // Mock the toast functions
 jest.mock('@chakra-ui/react', () => {
   const originalModule =
@@ -245,5 +249,20 @@ describe('<Settings />', () => {
       expect(getByLabelText(/Anthropic API Key/i)).toBeInTheDocument();
     });
     expect(queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
+  });
+
+  test('shows only the Gemini API key input when a Gemini model is selected', async () => {
+    const { getByLabelText, queryByLabelText } = render(
+      <Settings storage={mockStorage} />
+    );
+
+    const modelNameSelect = getByLabelText(/Model Name/i);
+    fireEvent.change(modelNameSelect, { target: { value: geminiModel } });
+
+    await waitFor(() => {
+      expect(getByLabelText(/Gemini API Key/i)).toBeInTheDocument();
+    });
+    expect(queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
+    expect(queryByLabelText(/Anthropic API Key/i)).not.toBeInTheDocument();
   });
 });

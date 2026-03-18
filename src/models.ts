@@ -78,3 +78,32 @@ export function getProviderForModel(modelValue: string): Provider {
   const model = LLM_MODEL_OPTIONS.find(m => m.value === modelValue);
   return (model?.provider ?? 'openai') as Provider;
 }
+
+/**
+ * Per-provider UI and storage metadata.
+ * Adding a new provider here is the only models.ts change needed beyond
+ * declaring the Provider type and its LLM_MODELS entries.
+ */
+export const PROVIDER_CONFIG = {
+  openai: {
+    label: 'OpenAI',
+    storageKey: 'openaiApiKey',
+    helpUrl: 'https://platform.openai.com/api-keys',
+    helpLabel: 'OpenAI dashboard',
+  },
+  anthropic: {
+    label: 'Anthropic',
+    storageKey: 'anthropicApiKey',
+    helpUrl: 'https://console.anthropic.com/settings/keys',
+    helpLabel: 'Anthropic Console',
+  },
+  gemini: {
+    label: 'Google Gemini',
+    storageKey: 'geminiApiKey',
+    helpUrl: 'https://aistudio.google.com/app/apikey',
+    helpLabel: 'Google AI Studio',
+  },
+} as const satisfies Record<
+  Provider,
+  { label: string; storageKey: string; helpUrl: string; helpLabel: string }
+>;

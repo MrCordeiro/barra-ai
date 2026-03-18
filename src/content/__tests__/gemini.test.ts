@@ -42,11 +42,12 @@ describe('fetchGeminiResponse', () => {
     expect(response).toBe('A LinkedIn post about AI');
     const calls = (global.fetch as jest.Mock).mock.calls as [
       string,
-      { body: string },
+      { headers: Record<string, string>; body: string },
     ][];
     expect(calls[0][0]).toContain('gemini-2.0-flash:streamGenerateContent');
     expect(calls[0][0]).toContain('alt=sse');
-    expect(calls[0][0]).toContain('key=test-gemini-key');
+    expect(calls[0][0]).not.toContain('key=');
+    expect(calls[0][1].headers['x-goog-api-key']).toBe('test-gemini-key');
   });
 
   test('should include correct request body with contents and generationConfig', async () => {
@@ -107,6 +108,20 @@ describe('fetchGeminiResponse', () => {
     await expect(
       fetchGeminiResponse('prompt', 'gemini-2.0-flash', chromeStorage)
     ).rejects.toThrow('Invalid API key');
+  });
+
+  test('should fall back to statusText when error body is not JSON', async () => {
+    global.fetch = jest.fn().mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        statusText: 'Service Unavailable',
+        json: () => Promise.reject(new Error('not json')),
+      })
+    );
+
+    await expect(
+      fetchGeminiResponse('prompt', 'gemini-2.0-flash', chromeStorage)
+    ).rejects.toThrow('Service Unavailable');
   });
 
   test('should throw when geminiApiKey is missing from storage', async () => {

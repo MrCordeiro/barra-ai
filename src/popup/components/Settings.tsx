@@ -19,21 +19,21 @@ import { ExternalLinkIcon } from '@chakra-ui/icons';
 import {
   DEFAULT_LLM_MODEL,
   LLM_MODEL_OPTIONS,
+  PROVIDER_CONFIG,
+  Provider,
   getProviderForModel,
 } from '../../models';
 import { Storage } from '../../storages';
 
 interface Settings {
-  openaiApiKey: string;
-  anthropicApiKey: string;
-  geminiApiKey: string;
+  apiKeys: Record<Provider, string>;
   modelName: string;
 }
 
 const defaultSettings: Settings = {
-  openaiApiKey: '',
-  anthropicApiKey: '',
-  geminiApiKey: '',
+  apiKeys: Object.fromEntries(
+    (Object.keys(PROVIDER_CONFIG) as Provider[]).map(p => [p, ''])
+  ) as Record<Provider, string>,
   modelName: DEFAULT_LLM_MODEL.value,
 };
 
@@ -51,20 +51,21 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
 
   /* Load settings from storage */
   useEffect(() => {
+    const storageKeys = (Object.keys(PROVIDER_CONFIG) as Provider[]).map(
+      p => PROVIDER_CONFIG[p].storageKey
+    );
     storage
-      .get(['openaiApiKey', 'anthropicApiKey', 'geminiApiKey', 'modelName'])
+      .get([...storageKeys, 'modelName'])
       .then(result => {
-        if (
-          result.openaiApiKey ||
-          result.anthropicApiKey ||
-          result.geminiApiKey ||
-          result.modelName
-        ) {
+        if (storageKeys.some(k => result[k]) || result.modelName) {
+          const apiKeys = Object.fromEntries(
+            (Object.keys(PROVIDER_CONFIG) as Provider[]).map(p => [
+              p,
+              result[PROVIDER_CONFIG[p].storageKey] || '',
+            ])
+          ) as Record<Provider, string>;
           setSettings({
-            openaiApiKey: result.openaiApiKey || defaultSettings.openaiApiKey,
-            anthropicApiKey:
-              result.anthropicApiKey || defaultSettings.anthropicApiKey,
-            geminiApiKey: result.geminiApiKey || defaultSettings.geminiApiKey,
+            apiKeys,
             modelName: result.modelName || defaultSettings.modelName,
           });
         }
@@ -75,23 +76,33 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       });
   }, [storage]);
 
-  /* Update settings on change */
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setSettings(prevSettings => ({
-      ...prevSettings,
-      [name]: value,
-    }));
+  /* Update model name on change */
+  const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setSettings(prev => ({ ...prev, modelName: e.target.value }));
     setIsFormDirty(true);
   };
+
+  /* Update a specific provider's API key */
+  const handleApiKeyChange =
+    (provider: Provider) => (e: ChangeEvent<HTMLInputElement>) => {
+      setSettings(prev => ({
+        ...prev,
+        apiKeys: { ...prev.apiKeys, [provider]: e.target.value },
+      }));
+      setIsFormDirty(true);
+    };
 
   /* Save settings to storage */
   const handleSubmit = (e: ChangeEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const storageData: Record<string, string> = {
+      modelName: settings.modelName,
+    };
+    (Object.keys(PROVIDER_CONFIG) as Provider[]).forEach(p => {
+      storageData[PROVIDER_CONFIG[p].storageKey] = settings.apiKeys[p];
+    });
     storage
-      .set({ ...settings })
+      .set(storageData)
       .then(() => {
         toast({
           status: 'success',
@@ -113,9 +124,6 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const handleShowKeysClick = () => setShowKeys(!showKeys);
   const inputType = showKeys ? 'text' : 'password';
   const selectedProvider = getProviderForModel(settings.modelName);
-  const isOpenAISelected = selectedProvider === 'openai';
-  const isAnthropicSelected = selectedProvider === 'anthropic';
-  const isGeminiSelected = selectedProvider === 'gemini';
   const showHideButton = (
     <InputRightElement width="4.5rem">
       <Button h="1.75rem" size="xs" onClick={handleShowKeysClick}>
@@ -147,20 +155,11 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             id="model-name"
             name="modelName"
             value={settings.modelName}
-            onChange={handleChange}
+            onChange={handleModelChange}
             aria-label="Model Name"
           >
-            {(['openai', 'anthropic', 'gemini'] as const).map(provider => (
-              <optgroup
-                key={provider}
-                label={
-                  provider === 'openai'
-                    ? 'OpenAI'
-                    : provider === 'anthropic'
-                      ? 'Anthropic'
-                      : 'Google Gemini'
-                }
-              >
+            {(Object.keys(PROVIDER_CONFIG) as Provider[]).map(provider => (
+              <optgroup key={provider} label={PROVIDER_CONFIG[provider].label}>
                 {LLM_MODEL_OPTIONS.filter(m => m.provider === provider).map(
                   model => (
                     <option key={model.value} value={model.value}>
@@ -173,82 +172,31 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           </Select>
         </FormControl>
 
-        {isOpenAISelected && (
-          <FormControl mt={6}>
-            <FormLabel>OpenAI API Key</FormLabel>
-            <InputGroup size="md">
-              <Input
-                id="openai-api-key"
-                name="openaiApiKey"
-                pr="4.5rem"
-                type={inputType}
-                value={settings.openaiApiKey}
-                onChange={handleChange}
-                aria-label="OpenAI API Key"
-              />
-              {showHideButton}
-            </InputGroup>
-            <FormHelperText>
-              {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
-              <Link href="https://platform.openai.com/api-keys" isExternal>
-                OpenAI dashboard
-                <ExternalLinkIcon mx="2px" mb="3px" />
-              </Link>
-            </FormHelperText>
-          </FormControl>
-        )}
-
-        {isAnthropicSelected && (
-          <FormControl mt={6}>
-            <FormLabel>Anthropic API Key</FormLabel>
-            <InputGroup size="md">
-              <Input
-                id="anthropic-api-key"
-                name="anthropicApiKey"
-                pr="4.5rem"
-                type={inputType}
-                value={settings.anthropicApiKey}
-                onChange={handleChange}
-                aria-label="Anthropic API Key"
-              />
-              {showHideButton}
-            </InputGroup>
-            <FormHelperText>
-              {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
-              <Link
-                href="https://console.anthropic.com/settings/keys"
-                isExternal
-              >
-                Anthropic Console
-                <ExternalLinkIcon mx="2px" mb="3px" />
-              </Link>
-            </FormHelperText>
-          </FormControl>
-        )}
-
-        {isGeminiSelected && (
-          <FormControl mt={6}>
-            <FormLabel>Gemini API Key</FormLabel>
-            <InputGroup size="md">
-              <Input
-                id="gemini-api-key"
-                name="geminiApiKey"
-                pr="4.5rem"
-                type={inputType}
-                value={settings.geminiApiKey}
-                onChange={handleChange}
-                aria-label="Gemini API Key"
-              />
-              {showHideButton}
-            </InputGroup>
-            <FormHelperText>
-              {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
-              <Link href="https://aistudio.google.com/app/apikey" isExternal>
-                Google AI Studio
-                <ExternalLinkIcon mx="2px" mb="3px" />
-              </Link>
-            </FormHelperText>
-          </FormControl>
+        {(Object.keys(PROVIDER_CONFIG) as Provider[]).map(
+          provider =>
+            selectedProvider === provider && (
+              <FormControl key={provider} mt={6}>
+                <FormLabel>{PROVIDER_CONFIG[provider].label} API Key</FormLabel>
+                <InputGroup size="md">
+                  <Input
+                    id={`${provider}-api-key`}
+                    pr="4.5rem"
+                    type={inputType}
+                    value={settings.apiKeys[provider]}
+                    onChange={handleApiKeyChange(provider)}
+                    aria-label={`${PROVIDER_CONFIG[provider].label} API Key`}
+                  />
+                  {showHideButton}
+                </InputGroup>
+                <FormHelperText>
+                  {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
+                  <Link href={PROVIDER_CONFIG[provider].helpUrl} isExternal>
+                    {PROVIDER_CONFIG[provider].helpLabel}
+                    <ExternalLinkIcon mx="2px" mb="3px" />
+                  </Link>
+                </FormHelperText>
+              </FormControl>
+            )
         )}
 
         <Button
