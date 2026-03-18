@@ -163,6 +163,7 @@ describe('<Settings />', () => {
     expect(mockStorage.savedData).toEqual({
       openaiApiKey: 'my-openai-key',
       anthropicApiKey: 'my-anthropic-key',
+      geminiApiKey: '',
       modelName: openAIModel,
     });
 

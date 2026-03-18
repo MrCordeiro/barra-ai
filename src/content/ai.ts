@@ -4,6 +4,7 @@ import { chromeStorage } from '../storages';
 import { DEFAULT_LLM_MODEL, getProviderForModel } from '../models';
 import { fetchGptResponse } from './openai';
 import { fetchAnthropicResponse } from './anthropic';
+import { fetchGeminiResponse } from './gemini';
 
 export const USE_MOCK = /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK ?? '');
 
@@ -32,13 +33,17 @@ export async function fetchAIResponse(
   }
   const { modelName } = await chromeStorage.get(['modelName']);
   const resolvedModel = modelName || DEFAULT_LLM_MODEL.value;
-  if (getProviderForModel(resolvedModel) === 'anthropic') {
+  const provider = getProviderForModel(resolvedModel);
+  if (provider === 'anthropic') {
     return fetchAnthropicResponse(
       prompt,
       resolvedModel,
       chromeStorage,
       onChunk
     );
+  }
+  if (provider === 'gemini') {
+    return fetchGeminiResponse(prompt, resolvedModel, chromeStorage, onChunk);
   }
   return fetchGptResponse(prompt, resolvedModel, chromeStorage, onChunk);
 }

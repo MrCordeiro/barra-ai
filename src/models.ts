@@ -1,4 +1,4 @@
-export type Provider = 'openai' | 'anthropic';
+export type Provider = 'openai' | 'anthropic' | 'gemini';
 
 export const LLM_MODELS = Object.freeze({
   GPT_52: { name: 'GPT-5.2', value: 'gpt-5.2', provider: 'openai' },
@@ -42,6 +42,31 @@ export const LLM_MODELS = Object.freeze({
     name: 'Claude Haiku 4.5',
     value: 'claude-haiku-4-5-20251001',
     provider: 'anthropic',
+  },
+  GEMINI_25_PRO: {
+    name: 'Gemini 2.5 Pro',
+    value: 'gemini-2.5-pro',
+    provider: 'gemini',
+  },
+  GEMINI_20_FLASH: {
+    name: 'Gemini 2.0 Flash',
+    value: 'gemini-2.0-flash',
+    provider: 'gemini',
+  },
+  GEMINI_20_FLASH_LITE: {
+    name: 'Gemini 2.0 Flash Lite',
+    value: 'gemini-2.0-flash-lite',
+    provider: 'gemini',
+  },
+  GEMINI_15_PRO: {
+    name: 'Gemini 1.5 Pro',
+    value: 'gemini-1.5-pro',
+    provider: 'gemini',
+  },
+  GEMINI_15_FLASH: {
+    name: 'Gemini 1.5 Flash',
+    value: 'gemini-1.5-flash',
+    provider: 'gemini',
   },
 } as const);
 

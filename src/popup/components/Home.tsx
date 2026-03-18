@@ -27,9 +27,13 @@ const Home = ({ hasApiKey = true }: Props) => {
 
     const checkStorage = () => {
       chromeStorage
-        .get(['openaiApiKey', 'anthropicApiKey'])
+        .get(['openaiApiKey', 'anthropicApiKey', 'geminiApiKey'])
         .then(result => {
-          setShowWarning(!result.openaiApiKey && !result.anthropicApiKey);
+          setShowWarning(
+            !result.openaiApiKey &&
+              !result.anthropicApiKey &&
+              !result.geminiApiKey
+          );
         })
         .catch((error: Error) => {
           console.error(`Error loading settings: ${error.message}`);
@@ -40,7 +44,11 @@ const Home = ({ hasApiKey = true }: Props) => {
 
     const handleStorageChange: StorageChangeListener = (changes, areaName) => {
       if (areaName !== 'local') return;
-      if (!('openaiApiKey' in changes) && !('anthropicApiKey' in changes))
+      if (
+        !('openaiApiKey' in changes) &&
+        !('anthropicApiKey' in changes) &&
+        !('geminiApiKey' in changes)
+      )
         return;
       checkStorage();
     };

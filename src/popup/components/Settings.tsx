@@ -26,12 +26,14 @@ import { Storage } from '../../storages';
 interface Settings {
   openaiApiKey: string;
   anthropicApiKey: string;
+  geminiApiKey: string;
   modelName: string;
 }
 
 const defaultSettings: Settings = {
   openaiApiKey: '',
   anthropicApiKey: '',
+  geminiApiKey: '',
   modelName: DEFAULT_LLM_MODEL.value,
 };
 
@@ -50,13 +52,19 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   /* Load settings from storage */
   useEffect(() => {
     storage
-      .get(['openaiApiKey', 'anthropicApiKey', 'modelName'])
+      .get(['openaiApiKey', 'anthropicApiKey', 'geminiApiKey', 'modelName'])
       .then(result => {
-        if (result.openaiApiKey || result.anthropicApiKey || result.modelName) {
+        if (
+          result.openaiApiKey ||
+          result.anthropicApiKey ||
+          result.geminiApiKey ||
+          result.modelName
+        ) {
           setSettings({
             openaiApiKey: result.openaiApiKey || defaultSettings.openaiApiKey,
             anthropicApiKey:
               result.anthropicApiKey || defaultSettings.anthropicApiKey,
+            geminiApiKey: result.geminiApiKey || defaultSettings.geminiApiKey,
             modelName: result.modelName || defaultSettings.modelName,
           });
         }
@@ -106,6 +114,8 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const inputType = showKeys ? 'text' : 'password';
   const selectedProvider = getProviderForModel(settings.modelName);
   const isOpenAISelected = selectedProvider === 'openai';
+  const isAnthropicSelected = selectedProvider === 'anthropic';
+  const isGeminiSelected = selectedProvider === 'gemini';
   const showHideButton = (
     <InputRightElement width="4.5rem">
       <Button h="1.75rem" size="xs" onClick={handleShowKeysClick}>
@@ -140,10 +150,16 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             onChange={handleChange}
             aria-label="Model Name"
           >
-            {(['openai', 'anthropic'] as const).map(provider => (
+            {(['openai', 'anthropic', 'gemini'] as const).map(provider => (
               <optgroup
                 key={provider}
-                label={provider === 'openai' ? 'OpenAI' : 'Anthropic'}
+                label={
+                  provider === 'openai'
+                    ? 'OpenAI'
+                    : provider === 'anthropic'
+                      ? 'Anthropic'
+                      : 'Google Gemini'
+                }
               >
                 {LLM_MODEL_OPTIONS.filter(m => m.provider === provider).map(
                   model => (
@@ -182,7 +198,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           </FormControl>
         )}
 
-        {!isOpenAISelected && (
+        {isAnthropicSelected && (
           <FormControl mt={6}>
             <FormLabel>Anthropic API Key</FormLabel>
             <InputGroup size="md">
@@ -204,6 +220,31 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
                 isExternal
               >
                 Anthropic Console
+                <ExternalLinkIcon mx="2px" mb="3px" />
+              </Link>
+            </FormHelperText>
+          </FormControl>
+        )}
+
+        {isGeminiSelected && (
+          <FormControl mt={6}>
+            <FormLabel>Gemini API Key</FormLabel>
+            <InputGroup size="md">
+              <Input
+                id="gemini-api-key"
+                name="geminiApiKey"
+                pr="4.5rem"
+                type={inputType}
+                value={settings.geminiApiKey}
+                onChange={handleChange}
+                aria-label="Gemini API Key"
+              />
+              {showHideButton}
+            </InputGroup>
+            <FormHelperText>
+              {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
+              <Link href="https://aistudio.google.com/app/apikey" isExternal>
+                Google AI Studio
                 <ExternalLinkIcon mx="2px" mb="3px" />
               </Link>
             </FormHelperText>

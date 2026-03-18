@@ -12,9 +12,13 @@ function App() {
   // Show onboarding if no API key is configured
   useEffect(() => {
     chromeStorage
-      .get(['openaiApiKey', 'anthropicApiKey'])
+      .get(['openaiApiKey', 'anthropicApiKey', 'geminiApiKey'])
       .then(result => {
-        if (!result.openaiApiKey && !result.anthropicApiKey)
+        if (
+          !result.openaiApiKey &&
+          !result.anthropicApiKey &&
+          !result.geminiApiKey
+        )
           setShowOnboarding(true);
       })
       .catch((error: Error) => {
