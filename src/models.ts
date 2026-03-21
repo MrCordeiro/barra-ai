@@ -107,3 +107,6 @@ export const PROVIDER_CONFIG = {
   Provider,
   { label: string; storageKey: string; helpUrl: string; helpLabel: string }
 >;
+
+/** All provider keys, typed as Provider[]. Avoids repeated `Object.keys(PROVIDER_CONFIG) as Provider[]` casts. */
+export const PROVIDERS = Object.keys(PROVIDER_CONFIG) as Provider[];

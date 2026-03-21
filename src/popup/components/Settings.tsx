@@ -20,6 +20,7 @@ import {
   DEFAULT_LLM_MODEL,
   LLM_MODEL_OPTIONS,
   PROVIDER_CONFIG,
+  PROVIDERS,
   Provider,
   getProviderForModel,
 } from '../../models';
@@ -31,9 +32,10 @@ interface Settings {
 }
 
 const defaultSettings: Settings = {
-  apiKeys: Object.fromEntries(
-    (Object.keys(PROVIDER_CONFIG) as Provider[]).map(p => [p, ''])
-  ) as Record<Provider, string>,
+  apiKeys: Object.fromEntries(PROVIDERS.map(p => [p, ''])) as Record<
+    Provider,
+    string
+  >,
   modelName: DEFAULT_LLM_MODEL.value,
 };
 
@@ -51,18 +53,13 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
 
   /* Load settings from storage */
   useEffect(() => {
-    const storageKeys = (Object.keys(PROVIDER_CONFIG) as Provider[]).map(
-      p => PROVIDER_CONFIG[p].storageKey
-    );
+    const storageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
     storage
       .get([...storageKeys, 'modelName'])
       .then(result => {
         if (storageKeys.some(k => result[k]) || result.modelName) {
           const apiKeys = Object.fromEntries(
-            (Object.keys(PROVIDER_CONFIG) as Provider[]).map(p => [
-              p,
-              result[PROVIDER_CONFIG[p].storageKey] || '',
-            ])
+            PROVIDERS.map(p => [p, result[PROVIDER_CONFIG[p].storageKey] || ''])
           ) as Record<Provider, string>;
           setSettings({
             apiKeys,
@@ -98,7 +95,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     const storageData: Record<string, string> = {
       modelName: settings.modelName,
     };
-    (Object.keys(PROVIDER_CONFIG) as Provider[]).forEach(p => {
+    PROVIDERS.forEach(p => {
       storageData[PROVIDER_CONFIG[p].storageKey] = settings.apiKeys[p];
     });
     storage
@@ -158,7 +155,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             onChange={handleModelChange}
             aria-label="Model Name"
           >
-            {(Object.keys(PROVIDER_CONFIG) as Provider[]).map(provider => (
+            {PROVIDERS.map(provider => (
               <optgroup key={provider} label={PROVIDER_CONFIG[provider].label}>
                 {LLM_MODEL_OPTIONS.filter(m => m.provider === provider).map(
                   model => (
@@ -172,7 +169,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           </Select>
         </FormControl>
 
-        {(Object.keys(PROVIDER_CONFIG) as Provider[]).map(
+        {PROVIDERS.map(
           provider =>
             selectedProvider === provider && (
               <FormControl key={provider} mt={6}>

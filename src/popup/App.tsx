@@ -5,16 +5,14 @@ import Home from './components/Home';
 import NavBar from './components/NavBar';
 import Settings from './components/Settings';
 import { chromeStorage } from '../storages';
-import { PROVIDER_CONFIG, Provider } from '../models';
+import { PROVIDER_CONFIG, PROVIDERS } from '../models';
 
 function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Show onboarding if no API key is configured
   useEffect(() => {
-    const apiKeyStorageKeys = (Object.keys(PROVIDER_CONFIG) as Provider[]).map(
-      p => PROVIDER_CONFIG[p].storageKey
-    );
+    const apiKeyStorageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
     chromeStorage
       .get(apiKeyStorageKeys)
       .then(result => {

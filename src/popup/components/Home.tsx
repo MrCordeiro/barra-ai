@@ -11,7 +11,7 @@ import {
 } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
 import { chromeStorage, type StorageChangeListener } from '../../storages';
-import { PROVIDER_CONFIG, Provider } from '../../models';
+import { PROVIDER_CONFIG, PROVIDERS } from '../../models';
 
 interface Props {
   hasApiKey?: boolean;
@@ -26,9 +26,7 @@ const Home = ({ hasApiKey = true }: Props) => {
       return;
     }
 
-    const apiKeyStorageKeys = (Object.keys(PROVIDER_CONFIG) as Provider[]).map(
-      p => PROVIDER_CONFIG[p].storageKey
-    );
+    const apiKeyStorageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
     const checkStorage = () => {
       chromeStorage
         .get(apiKeyStorageKeys)
