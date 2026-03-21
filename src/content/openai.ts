@@ -1,33 +1,8 @@
 'use strict';
 
 import { Storage, chromeStorage } from '../storages';
+import { extractErrorMessage } from './providerError';
 import { parseSSEStream } from './sseParser';
-
-interface GPTResponse {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: {
-    index: number;
-    message: {
-      role: string;
-      content: string;
-    };
-    finish_reason: string;
-  }[];
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-  error?: {
-    message: string;
-    type: string;
-    param: string | null;
-    code: string;
-  };
-}
 
 interface GPTStreamChunk {
   choices: { delta: { content?: string }; index: number }[];
@@ -71,8 +46,8 @@ export async function fetchGptResponse(
     requestOptions
   );
   if (!response.ok) {
-    const data = (await response.json()) as GPTResponse;
-    throw new Error(`Failed to connect to OpenAI. ${data.error!.message}`);
+    const message = await extractErrorMessage(response);
+    throw new Error(`Failed to connect to OpenAI. ${message}`);
   }
 
   if (!response.body) throw new Error('OpenAI response has no body');

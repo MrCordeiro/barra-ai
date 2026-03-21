@@ -108,6 +108,20 @@ describe('fetchGptResponse', () => {
     ).rejects.toThrow('Test error');
   });
 
+  test('should fall back to statusText when error body is not JSON', async () => {
+    global.fetch = jest.fn().mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        statusText: 'Service Unavailable',
+        json: () => Promise.reject(new Error('not json')),
+      })
+    );
+
+    await expect(
+      fetchGptResponse('prompt', 'gpt-4o-mini', chromeStorage)
+    ).rejects.toThrow('Service Unavailable');
+  });
+
   test('should throw when response body is null', async () => {
     global.fetch = jest
       .fn()

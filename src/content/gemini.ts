@@ -1,11 +1,8 @@
 'use strict';
 
 import { Storage, chromeStorage } from '../storages';
+import { extractErrorMessage } from './providerError';
 import { parseSSEStream } from './sseParser';
-
-interface GeminiErrorResponse {
-  error?: { code: number; message: string; status: string };
-}
 
 interface GeminiStreamChunk {
   candidates?: {
@@ -45,13 +42,7 @@ export async function fetchGeminiResponse(
 
   const response = await fetch(url, requestOptions);
   if (!response.ok) {
-    let message = response.statusText;
-    try {
-      const data = (await response.json()) as GeminiErrorResponse;
-      message = data.error?.message ?? message;
-    } catch {
-      // JSON parsing failed; fall back to statusText
-    }
+    const message = await extractErrorMessage(response);
     throw new Error(`Failed to connect to Gemini. ${message}`);
   }
 
