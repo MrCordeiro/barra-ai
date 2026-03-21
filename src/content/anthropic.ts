@@ -67,7 +67,7 @@ async function getSettings(storage: Storage) {
   const { anthropicApiKey } = await storage.get(['anthropicApiKey']);
   if (!anthropicApiKey) {
     throw new Error(
-      'API Key or Model Name is not set. Please go to the settings page to set them.'
+      'Anthropic API Key is not set. Please go to the settings page to set it.'
     );
   }
   return { anthropicApiKey };

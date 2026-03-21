@@ -64,7 +64,7 @@ async function getSettings(storage: Storage) {
   const { openaiApiKey } = await storage.get(['openaiApiKey']);
   if (!openaiApiKey) {
     throw new Error(
-      'API Key or Model Name is not set. Please go to the settings page to set them.'
+      'OpenAI API Key is not set. Please go to the settings page to set it.'
     );
   }
   return { openaiApiKey };

@@ -59,7 +59,7 @@ async function getSettings(storage: Storage) {
   const { geminiApiKey } = await storage.get(['geminiApiKey']);
   if (!geminiApiKey) {
     throw new Error(
-      'API Key or Model Name is not set. Please go to the settings page to set them.'
+      'Gemini API Key is not set. Please go to the settings page to set it.'
     );
   }
   return { geminiApiKey };

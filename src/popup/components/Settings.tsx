@@ -1,4 +1,4 @@
-import { useState, useEffect, type ChangeEvent } from 'react';
+import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -90,7 +90,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     };
 
   /* Save settings to storage */
-  const handleSubmit = (e: ChangeEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const storageData: Record<string, string> = {
       modelName: settings.modelName,

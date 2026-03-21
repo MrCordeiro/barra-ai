@@ -130,7 +130,7 @@ describe('fetchGeminiResponse', () => {
 
     await expect(
       fetchGeminiResponse('prompt', 'gemini-2.0-flash', chromeStorage)
-    ).rejects.toThrow('API Key or Model Name is not set');
+    ).rejects.toThrow('Gemini API Key is not set');
   });
 
   test('should throw when response body is null', async () => {

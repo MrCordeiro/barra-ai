@@ -136,7 +136,7 @@ describe('fetchAnthropicResponse', () => {
 
     await expect(
       fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
-    ).rejects.toThrow('API Key or Model Name is not set');
+    ).rejects.toThrow('Anthropic API Key is not set');
   });
 
   test('should throw when response body is null', async () => {
