@@ -81,8 +81,9 @@ export function getProviderForModel(modelValue: string): Provider {
 
 /**
  * Per-provider UI and storage metadata.
- * Adding a new provider here is the only models.ts change needed beyond
- * declaring the Provider type and its LLM_MODELS entries.
+ *
+ * To add a new provider, add a new entry here and register it in
+ * providerHandlers in src/content/ai.ts
  */
 export const PROVIDER_CONFIG = {
   openai: {
