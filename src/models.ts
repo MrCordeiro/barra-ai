@@ -81,10 +81,9 @@ export function getProviderForModel(modelValue: string): Provider {
 
 /**
  * Per-provider UI and storage metadata.
- * Centralizes labels, storage keys, and help links so the Settings UI
- * and onboarding logic stay provider-agnostic. A new provider also needs
- * its own fetch module (e.g. src/content/<provider>.ts) and a routing
- * entry in src/content/ai.ts.
+ *
+ * To add a new provider, add a new entry here and register it in
+ * providerHandlers in src/content/ai.ts
  */
 export const PROVIDER_CONFIG = {
   openai: {

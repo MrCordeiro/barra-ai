@@ -51,27 +51,32 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const toast = useToast();
   const navigate = useNavigate();
 
-  /* Load settings from storage */
-  useEffect(() => {
-    const storageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
-    storage
-      .get([...storageKeys, 'modelName'])
-      .then(result => {
-        if (storageKeys.some(k => result[k]) || result.modelName) {
-          const apiKeys = Object.fromEntries(
-            PROVIDERS.map(p => [p, result[PROVIDER_CONFIG[p].storageKey] || ''])
-          ) as Record<Provider, string>;
-          setSettings({
-            apiKeys,
-            modelName: result.modelName || defaultSettings.modelName,
-          });
-        }
-        setIsFormDirty(false);
-      })
-      .catch((error: Error) => {
-        console.error(`Error loading settings: ${error.message}`);
-      });
-  }, [storage]);
+  useEffect(
+    function loadSettings() {
+      const storageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
+      storage
+        .get([...storageKeys, 'modelName'])
+        .then(result => {
+          if (storageKeys.some(k => result[k]) || result.modelName) {
+            const apiKeys = Object.fromEntries(
+              PROVIDERS.map(p => [
+                p,
+                result[PROVIDER_CONFIG[p].storageKey] || '',
+              ])
+            ) as Record<Provider, string>;
+            setSettings({
+              apiKeys,
+              modelName: result.modelName || defaultSettings.modelName,
+            });
+          }
+          setIsFormDirty(false);
+        })
+        .catch((error: Error) => {
+          console.error(`Error loading settings: ${error.message}`);
+        });
+    },
+    [storage]
+  );
 
   /* Update model name on change */
   const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -89,8 +94,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       setIsFormDirty(true);
     };
 
-  /* Save settings to storage */
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const saveSettings = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const storageData: Record<string, string> = {
       modelName: settings.modelName,
@@ -145,7 +149,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           Settings
         </Heading>
       )}
-      <form aria-label="Settings form" onSubmit={handleSubmit}>
+      <form aria-label="Settings form" onSubmit={saveSettings}>
         <FormControl isRequired mt={6}>
           <FormLabel>Model Name</FormLabel>
           <Select
