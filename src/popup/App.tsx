@@ -5,16 +5,18 @@ import Home from './components/Home';
 import NavBar from './components/NavBar';
 import Settings from './components/Settings';
 import { chromeStorage } from '../storages';
+import { PROVIDER_CONFIG, PROVIDERS } from '../models';
 
 function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Show onboarding if no API key is configured
   useEffect(() => {
+    const apiKeyStorageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
     chromeStorage
-      .get(['openaiApiKey', 'anthropicApiKey'])
+      .get(apiKeyStorageKeys)
       .then(result => {
-        if (!result.openaiApiKey && !result.anthropicApiKey)
+        if (apiKeyStorageKeys.every(key => !result[key]))
           setShowOnboarding(true);
       })
       .catch((error: Error) => {

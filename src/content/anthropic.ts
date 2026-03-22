@@ -1,11 +1,8 @@
 'use strict';
 
 import { Storage, chromeStorage } from '../storages';
+import { extractErrorMessage } from './providerError';
 import { parseSSEStream } from './sseParser';
-
-interface AnthropicErrorResponse {
-  error?: { type: string; message: string };
-}
 
 interface AnthropicStreamChunk {
   type: string;
@@ -48,8 +45,8 @@ export async function fetchAnthropicResponse(
     requestOptions
   );
   if (!response.ok) {
-    const data = (await response.json()) as AnthropicErrorResponse;
-    throw new Error(`Failed to connect to Anthropic. ${data.error!.message}`);
+    const message = await extractErrorMessage(response);
+    throw new Error(`Failed to connect to Anthropic. ${message}`);
   }
 
   if (!response.body) throw new Error('Anthropic response has no body');
@@ -70,7 +67,7 @@ async function getSettings(storage: Storage) {
   const { anthropicApiKey } = await storage.get(['anthropicApiKey']);
   if (!anthropicApiKey) {
     throw new Error(
-      'API Key or Model Name is not set. Please go to the settings page to set them.'
+      'Anthropic API Key is not set. Please go to the settings page to set it.'
     );
   }
   return { anthropicApiKey };

@@ -1,4 +1,4 @@
-export type Provider = 'openai' | 'anthropic';
+export type Provider = 'openai' | 'anthropic' | 'gemini';
 
 export const LLM_MODELS = Object.freeze({
   GPT_52: { name: 'GPT-5.2', value: 'gpt-5.2', provider: 'openai' },
@@ -43,6 +43,31 @@ export const LLM_MODELS = Object.freeze({
     value: 'claude-haiku-4-5-20251001',
     provider: 'anthropic',
   },
+  GEMINI_25_PRO: {
+    name: 'Gemini 2.5 Pro',
+    value: 'gemini-2.5-pro',
+    provider: 'gemini',
+  },
+  GEMINI_20_FLASH: {
+    name: 'Gemini 2.0 Flash',
+    value: 'gemini-2.0-flash',
+    provider: 'gemini',
+  },
+  GEMINI_20_FLASH_LITE: {
+    name: 'Gemini 2.0 Flash Lite',
+    value: 'gemini-2.0-flash-lite',
+    provider: 'gemini',
+  },
+  GEMINI_15_PRO: {
+    name: 'Gemini 1.5 Pro',
+    value: 'gemini-1.5-pro',
+    provider: 'gemini',
+  },
+  GEMINI_15_FLASH: {
+    name: 'Gemini 1.5 Flash',
+    value: 'gemini-1.5-flash',
+    provider: 'gemini',
+  },
 } as const);
 
 export const DEFAULT_LLM_MODEL = LLM_MODELS.GPT_4O_MINI;
@@ -53,3 +78,36 @@ export function getProviderForModel(modelValue: string): Provider {
   const model = LLM_MODEL_OPTIONS.find(m => m.value === modelValue);
   return (model?.provider ?? 'openai') as Provider;
 }
+
+/**
+ * Per-provider UI and storage metadata.
+ *
+ * To add a new provider, add a new entry here and register it in
+ * providerHandlers in src/content/ai.ts
+ */
+export const PROVIDER_CONFIG = {
+  openai: {
+    label: 'OpenAI',
+    storageKey: 'openaiApiKey',
+    helpUrl: 'https://platform.openai.com/api-keys',
+    helpLabel: 'OpenAI dashboard',
+  },
+  anthropic: {
+    label: 'Anthropic',
+    storageKey: 'anthropicApiKey',
+    helpUrl: 'https://console.anthropic.com/settings/keys',
+    helpLabel: 'Anthropic Console',
+  },
+  gemini: {
+    label: 'Google Gemini',
+    storageKey: 'geminiApiKey',
+    helpUrl: 'https://aistudio.google.com/app/apikey',
+    helpLabel: 'Google AI Studio',
+  },
+} as const satisfies Record<
+  Provider,
+  { label: string; storageKey: string; helpUrl: string; helpLabel: string }
+>;
+
+/** All provider keys, typed as Provider[]. Avoids repeated `Object.keys(PROVIDER_CONFIG) as Provider[]` casts. */
+export const PROVIDERS = Object.keys(PROVIDER_CONFIG) as Provider[];

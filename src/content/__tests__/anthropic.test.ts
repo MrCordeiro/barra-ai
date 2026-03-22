@@ -115,6 +115,20 @@ describe('fetchAnthropicResponse', () => {
     ).rejects.toThrow('Invalid API key');
   });
 
+  test('should fall back to statusText when error body is not JSON', async () => {
+    global.fetch = jest.fn().mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        statusText: 'Service Unavailable',
+        json: () => Promise.reject(new Error('not json')),
+      })
+    );
+
+    await expect(
+      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
+    ).rejects.toThrow('Service Unavailable');
+  });
+
   test('should throw when anthropicApiKey is missing from storage', async () => {
     jest
       .spyOn(chromeStorage, 'get')
@@ -122,7 +136,7 @@ describe('fetchAnthropicResponse', () => {
 
     await expect(
       fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
-    ).rejects.toThrow('API Key or Model Name is not set');
+    ).rejects.toThrow('Anthropic API Key is not set');
   });
 
   test('should throw when response body is null', async () => {

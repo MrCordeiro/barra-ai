@@ -1,4 +1,4 @@
-import { useState, useEffect, type ChangeEvent } from 'react';
+import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,19 +19,23 @@ import { ExternalLinkIcon } from '@chakra-ui/icons';
 import {
   DEFAULT_LLM_MODEL,
   LLM_MODEL_OPTIONS,
+  PROVIDER_CONFIG,
+  PROVIDERS,
+  Provider,
   getProviderForModel,
 } from '../../models';
 import { Storage } from '../../storages';
 
 interface Settings {
-  openaiApiKey: string;
-  anthropicApiKey: string;
+  apiKeys: Record<Provider, string>;
   modelName: string;
 }
 
 const defaultSettings: Settings = {
-  openaiApiKey: '',
-  anthropicApiKey: '',
+  apiKeys: Object.fromEntries(PROVIDERS.map(p => [p, ''])) as Record<
+    Provider,
+    string
+  >,
   modelName: DEFAULT_LLM_MODEL.value,
 };
 
@@ -47,43 +51,59 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const toast = useToast();
   const navigate = useNavigate();
 
-  /* Load settings from storage */
-  useEffect(() => {
-    storage
-      .get(['openaiApiKey', 'anthropicApiKey', 'modelName'])
-      .then(result => {
-        if (result.openaiApiKey || result.anthropicApiKey || result.modelName) {
-          setSettings({
-            openaiApiKey: result.openaiApiKey || defaultSettings.openaiApiKey,
-            anthropicApiKey:
-              result.anthropicApiKey || defaultSettings.anthropicApiKey,
-            modelName: result.modelName || defaultSettings.modelName,
-          });
-        }
-        setIsFormDirty(false);
-      })
-      .catch((error: Error) => {
-        console.error(`Error loading settings: ${error.message}`);
-      });
-  }, [storage]);
+  useEffect(
+    function loadSettings() {
+      const storageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
+      storage
+        .get([...storageKeys, 'modelName'])
+        .then(result => {
+          if (storageKeys.some(k => result[k]) || result.modelName) {
+            const apiKeys = Object.fromEntries(
+              PROVIDERS.map(p => [
+                p,
+                result[PROVIDER_CONFIG[p].storageKey] || '',
+              ])
+            ) as Record<Provider, string>;
+            setSettings({
+              apiKeys,
+              modelName: result.modelName || defaultSettings.modelName,
+            });
+          }
+          setIsFormDirty(false);
+        })
+        .catch((error: Error) => {
+          console.error(`Error loading settings: ${error.message}`);
+        });
+    },
+    [storage]
+  );
 
-  /* Update settings on change */
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setSettings(prevSettings => ({
-      ...prevSettings,
-      [name]: value,
-    }));
+  /* Update model name on change */
+  const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setSettings(prev => ({ ...prev, modelName: e.target.value }));
     setIsFormDirty(true);
   };
 
-  /* Save settings to storage */
-  const handleSubmit = (e: ChangeEvent<HTMLFormElement>) => {
+  /* Update a specific provider's API key */
+  const handleApiKeyChange =
+    (provider: Provider) => (e: ChangeEvent<HTMLInputElement>) => {
+      setSettings(prev => ({
+        ...prev,
+        apiKeys: { ...prev.apiKeys, [provider]: e.target.value },
+      }));
+      setIsFormDirty(true);
+    };
+
+  const saveSettings = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const storageData: Record<string, string> = {
+      modelName: settings.modelName,
+    };
+    PROVIDERS.forEach(p => {
+      storageData[PROVIDER_CONFIG[p].storageKey] = settings.apiKeys[p];
+    });
     storage
-      .set({ ...settings })
+      .set(storageData)
       .then(() => {
         toast({
           status: 'success',
@@ -105,7 +125,6 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const handleShowKeysClick = () => setShowKeys(!showKeys);
   const inputType = showKeys ? 'text' : 'password';
   const selectedProvider = getProviderForModel(settings.modelName);
-  const isOpenAISelected = selectedProvider === 'openai';
   const showHideButton = (
     <InputRightElement width="4.5rem">
       <Button h="1.75rem" size="xs" onClick={handleShowKeysClick}>
@@ -130,21 +149,18 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           Settings
         </Heading>
       )}
-      <form aria-label="Settings form" onSubmit={handleSubmit}>
+      <form aria-label="Settings form" onSubmit={saveSettings}>
         <FormControl isRequired mt={6}>
           <FormLabel>Model Name</FormLabel>
           <Select
             id="model-name"
             name="modelName"
             value={settings.modelName}
-            onChange={handleChange}
+            onChange={handleModelChange}
             aria-label="Model Name"
           >
-            {(['openai', 'anthropic'] as const).map(provider => (
-              <optgroup
-                key={provider}
-                label={provider === 'openai' ? 'OpenAI' : 'Anthropic'}
-              >
+            {PROVIDERS.map(provider => (
+              <optgroup key={provider} label={PROVIDER_CONFIG[provider].label}>
                 {LLM_MODEL_OPTIONS.filter(m => m.provider === provider).map(
                   model => (
                     <option key={model.value} value={model.value}>
@@ -157,57 +173,31 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           </Select>
         </FormControl>
 
-        {isOpenAISelected && (
-          <FormControl mt={6}>
-            <FormLabel>OpenAI API Key</FormLabel>
-            <InputGroup size="md">
-              <Input
-                id="openai-api-key"
-                name="openaiApiKey"
-                pr="4.5rem"
-                type={inputType}
-                value={settings.openaiApiKey}
-                onChange={handleChange}
-                aria-label="OpenAI API Key"
-              />
-              {showHideButton}
-            </InputGroup>
-            <FormHelperText>
-              {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
-              <Link href="https://platform.openai.com/api-keys" isExternal>
-                OpenAI dashboard
-                <ExternalLinkIcon mx="2px" mb="3px" />
-              </Link>
-            </FormHelperText>
-          </FormControl>
-        )}
-
-        {!isOpenAISelected && (
-          <FormControl mt={6}>
-            <FormLabel>Anthropic API Key</FormLabel>
-            <InputGroup size="md">
-              <Input
-                id="anthropic-api-key"
-                name="anthropicApiKey"
-                pr="4.5rem"
-                type={inputType}
-                value={settings.anthropicApiKey}
-                onChange={handleChange}
-                aria-label="Anthropic API Key"
-              />
-              {showHideButton}
-            </InputGroup>
-            <FormHelperText>
-              {showOnboarding ? 'Create' : 'Find'} your API key in the{' '}
-              <Link
-                href="https://console.anthropic.com/settings/keys"
-                isExternal
-              >
-                Anthropic Console
-                <ExternalLinkIcon mx="2px" mb="3px" />
-              </Link>
-            </FormHelperText>
-          </FormControl>
+        {PROVIDERS.map(
+          provider =>
+            selectedProvider === provider && (
+              <FormControl key={provider} mt={6}>
+                <FormLabel>{PROVIDER_CONFIG[provider].label} API Key</FormLabel>
+                <InputGroup size="md">
+                  <Input
+                    id={`${provider}-api-key`}
+                    pr="4.5rem"
+                    type={inputType}
+                    value={settings.apiKeys[provider]}
+                    onChange={handleApiKeyChange(provider)}
+                    aria-label={`${PROVIDER_CONFIG[provider].label} API Key`}
+                  />
+                  {showHideButton}
+                </InputGroup>
+                <FormHelperText>
+                  {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
+                  <Link href={PROVIDER_CONFIG[provider].helpUrl} isExternal>
+                    {PROVIDER_CONFIG[provider].helpLabel}
+                    <ExternalLinkIcon mx="2px" mb="3px" />
+                  </Link>
+                </FormHelperText>
+              </FormControl>
+            )
         )}
 
         <Button

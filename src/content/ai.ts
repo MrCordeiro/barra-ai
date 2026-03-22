@@ -1,9 +1,10 @@
 'use strict';
 
-import { chromeStorage } from '../storages';
-import { DEFAULT_LLM_MODEL, getProviderForModel } from '../models';
+import { chromeStorage, Storage } from '../storages';
+import { DEFAULT_LLM_MODEL, getProviderForModel, Provider } from '../models';
 import { fetchGptResponse } from './openai';
 import { fetchAnthropicResponse } from './anthropic';
+import { fetchGeminiResponse } from './gemini';
 
 export const USE_MOCK = /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK ?? '');
 
@@ -15,6 +16,19 @@ async function fetchAIMockResponse(): Promise<string> {
   block and hello to endless possibilities! 📝💡 \
   #AI #ContentCreation #Innovation";
 }
+
+type ProviderFetch = (
+  prompt: string,
+  modelName: string,
+  storage: Storage,
+  onChunk?: (chunk: string) => void
+) => Promise<string>;
+
+const providerHandlers: Record<Provider, ProviderFetch> = {
+  openai: fetchGptResponse,
+  anthropic: fetchAnthropicResponse,
+  gemini: fetchGeminiResponse,
+};
 
 /**
  * Fetches an AI response, routing to the correct provider based on the stored model
@@ -32,13 +46,11 @@ export async function fetchAIResponse(
   }
   const { modelName } = await chromeStorage.get(['modelName']);
   const resolvedModel = modelName || DEFAULT_LLM_MODEL.value;
-  if (getProviderForModel(resolvedModel) === 'anthropic') {
-    return fetchAnthropicResponse(
-      prompt,
-      resolvedModel,
-      chromeStorage,
-      onChunk
-    );
-  }
-  return fetchGptResponse(prompt, resolvedModel, chromeStorage, onChunk);
+  const provider = getProviderForModel(resolvedModel);
+  return providerHandlers[provider](
+    prompt,
+    resolvedModel,
+    chromeStorage,
+    onChunk
+  );
 }
