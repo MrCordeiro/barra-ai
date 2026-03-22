@@ -5,6 +5,7 @@ import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
 import { Storage } from '../../storages';
 import Settings from '../components/Settings';
+import * as ollamaModule from '../../content/ollama';
 
 /**
  * A mock storage object that saves data in memory
@@ -29,7 +30,7 @@ const mockStorage: Storage & { savedData?: Record<string, string> } = {
   },
   set: _items => {
     return new Promise(resolve => {
-      mockStorage.savedData = _items;
+      mockStorage.savedData = { ...(mockStorage.savedData ?? {}), ..._items };
       resolve();
     });
   },
@@ -264,5 +265,114 @@ describe('<Settings />', () => {
     });
     expect(queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
     expect(queryByLabelText(/Anthropic API Key/i)).not.toBeInTheDocument();
+  });
+
+  test('local model toggle is off by default', () => {
+    render(<Settings storage={mockStorage} />);
+
+    const toggle = screen.getByRole('checkbox', {
+      name: /Use local model \(Ollama\)/i,
+    });
+    expect(toggle).not.toBeChecked();
+  });
+
+  test('toggling local model ON hides cloud fields and shows Configure link', async () => {
+    jest
+      .spyOn(ollamaModule, 'checkOllamaConnection')
+      .mockResolvedValue({ type: 'connected', models: ['llama3.2:latest'] });
+
+    render(<Settings storage={mockStorage} />);
+
+    const toggle = screen.getByRole('checkbox', {
+      name: /Use local model \(Ollama\)/i,
+    });
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText(/Model Name/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByLabelText(/OpenAI API Key/i)
+      ).not.toBeInTheDocument();
+      expect(screen.getByText(/Configure/i)).toBeInTheDocument();
+    });
+  });
+
+  test('toggling local model ON saves localModelEnabled=true to storage', async () => {
+    const mockNavigate = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+    jest
+      .spyOn(ollamaModule, 'checkOllamaConnection')
+      .mockResolvedValue({ type: 'not-running' });
+
+    render(<Settings storage={mockStorage} />);
+
+    const toggle = screen.getByRole('checkbox', {
+      name: /Use local model \(Ollama\)/i,
+    });
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(mockStorage.savedData?.localModelEnabled).toBe('true');
+    });
+  });
+
+  test('auto-navigates to /local-model-config on first toggle ON', async () => {
+    const mockNavigate = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+
+    render(<Settings storage={mockStorage} />);
+
+    const toggle = screen.getByRole('checkbox', {
+      name: /Use local model \(Ollama\)/i,
+    });
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/local-model-config');
+    });
+  });
+
+  test('shows connection status when local model is already enabled', async () => {
+    mockStorage.savedData = {
+      localModelEnabled: 'true',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'llama3.2:latest',
+    };
+    jest
+      .spyOn(ollamaModule, 'checkOllamaConnection')
+      .mockResolvedValue({ type: 'connected', models: ['llama3.2:latest'] });
+
+    render(<Settings storage={mockStorage} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/llama3\.2 · Connected/)).toBeInTheDocument();
+    });
+  });
+
+  test('toggling local model OFF restores cloud fields', async () => {
+    mockStorage.savedData = {
+      localModelEnabled: 'true',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'llama3.2:latest',
+    };
+    jest
+      .spyOn(ollamaModule, 'checkOllamaConnection')
+      .mockResolvedValue({ type: 'connected', models: ['llama3.2:latest'] });
+
+    render(<Settings storage={mockStorage} />);
+
+    // Wait for local model mode to render
+    await waitFor(() => {
+      expect(screen.getByText(/Configure/i)).toBeInTheDocument();
+    });
+
+    const toggle = screen.getByRole('checkbox', {
+      name: /Use local model \(Ollama\)/i,
+    });
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Model Name/i)).toBeInTheDocument();
+    });
   });
 });

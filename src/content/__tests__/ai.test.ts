@@ -49,11 +49,24 @@ describe('fetchAIResponse with USE_MOCK=true', () => {
 describe('fetchAIResponse routing (USE_MOCK=false)', () => {
   const mockFetchGptResponse = jest.fn();
   const mockFetchAnthropicResponse = jest.fn();
+  const mockFetchOllamaResponse = jest.fn();
 
-  function loadModule(modelName: string) {
+  function loadModule(
+    modelName: string,
+    localSettings?: {
+      localModelEnabled?: string;
+      localModelEndpoint?: string;
+      localModelName?: string;
+    }
+  ) {
     jest.doMock('../../storages', () => ({
       chromeStorage: {
-        get: jest.fn().mockResolvedValue({ modelName }),
+        get: jest.fn().mockResolvedValue({
+          modelName,
+          localModelEnabled: localSettings?.localModelEnabled ?? 'false',
+          localModelEndpoint: localSettings?.localModelEndpoint ?? '',
+          localModelName: localSettings?.localModelName ?? '',
+        }),
       },
     }));
     jest.doMock('../openai', () => ({
@@ -61,6 +74,10 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     }));
     jest.doMock('../anthropic', () => ({
       fetchAnthropicResponse: mockFetchAnthropicResponse,
+    }));
+    jest.doMock('../ollama', () => ({
+      fetchOllamaResponse: mockFetchOllamaResponse,
+      DEFAULT_OLLAMA_ENDPOINT: 'http://localhost:11434',
     }));
     return require('../ai') as {
       fetchAIResponse: (
@@ -76,6 +93,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     jest.resetModules();
     mockFetchGptResponse.mockReset();
     mockFetchAnthropicResponse.mockReset();
+    mockFetchOllamaResponse.mockReset();
   });
 
   test('routes to OpenAI for a GPT model', async () => {
@@ -92,6 +110,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
       onChunk
     );
     expect(mockFetchAnthropicResponse).not.toHaveBeenCalled();
+    expect(mockFetchOllamaResponse).not.toHaveBeenCalled();
   });
 
   test('routes to Anthropic for a Claude model', async () => {
@@ -108,6 +127,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
       onChunk
     );
     expect(mockFetchGptResponse).not.toHaveBeenCalled();
+    expect(mockFetchOllamaResponse).not.toHaveBeenCalled();
   });
 
   test('falls back to OpenAI for an unknown model', async () => {
@@ -124,5 +144,58 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
       onChunk
     );
     expect(mockFetchAnthropicResponse).not.toHaveBeenCalled();
+    expect(mockFetchOllamaResponse).not.toHaveBeenCalled();
+  });
+
+  test('routes to Ollama when localModelEnabled is true', async () => {
+    mockFetchOllamaResponse.mockResolvedValue('ollama response');
+    const { fetchAIResponse } = loadModule('gpt-4o-mini', {
+      localModelEnabled: 'true',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'llama3.2:latest',
+    });
+    const onChunk = jest.fn();
+
+    await fetchAIResponse('test prompt', onChunk);
+
+    expect(mockFetchOllamaResponse).toHaveBeenCalledWith(
+      'test prompt',
+      'llama3.2:latest',
+      'http://localhost:11434',
+      onChunk
+    );
+    expect(mockFetchGptResponse).not.toHaveBeenCalled();
+    expect(mockFetchAnthropicResponse).not.toHaveBeenCalled();
+  });
+
+  test('uses default Ollama endpoint when none is stored', async () => {
+    mockFetchOllamaResponse.mockResolvedValue('ollama response');
+    const { fetchAIResponse } = loadModule('gpt-4o', {
+      localModelEnabled: 'true',
+      localModelEndpoint: '',
+      localModelName: 'mistral:latest',
+    });
+
+    await fetchAIResponse('test prompt');
+
+    expect(mockFetchOllamaResponse).toHaveBeenCalledWith(
+      'test prompt',
+      'mistral:latest',
+      'http://localhost:11434',
+      undefined
+    );
+  });
+
+  test('throws when localModelEnabled is true but no model is selected', async () => {
+    const { fetchAIResponse } = loadModule('gpt-4o', {
+      localModelEnabled: 'true',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: '',
+    });
+
+    await expect(fetchAIResponse('test prompt')).rejects.toThrow(
+      'No local model selected'
+    );
+    expect(mockFetchOllamaResponse).not.toHaveBeenCalled();
   });
 });

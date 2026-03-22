@@ -3,15 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
+  Divider,
   FormControl,
   FormLabel,
   FormHelperText,
   Heading,
+  HStack,
   Input,
   InputGroup,
   InputRightElement,
   Link,
   Select,
+  Switch,
   Text,
   useToast,
 } from '@chakra-ui/react';
@@ -25,6 +28,12 @@ import {
   getProviderForModel,
 } from '../../models';
 import { Storage } from '../../storages';
+import {
+  checkOllamaConnection,
+  normalizeModelDisplay,
+  DEFAULT_OLLAMA_ENDPOINT,
+  OllamaConnectionStatus,
+} from '../../content/ollama';
 
 interface Settings {
   apiKeys: Record<Provider, string>;
@@ -48,6 +57,10 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [showKeys, setShowKeys] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
+  const [localModelEnabled, setLocalModelEnabled] = useState(false);
+  const [localModelName, setLocalModelName] = useState('');
+  const [localConnectionStatus, setLocalConnectionStatus] =
+    useState<OllamaConnectionStatus | null>(null);
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -55,7 +68,13 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     function loadSettings() {
       const storageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
       storage
-        .get([...storageKeys, 'modelName'])
+        .get([
+          ...storageKeys,
+          'modelName',
+          'localModelEnabled',
+          'localModelEndpoint',
+          'localModelName',
+        ])
         .then(result => {
           if (storageKeys.some(k => result[k]) || result.modelName) {
             const apiKeys = Object.fromEntries(
@@ -69,7 +88,18 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
               modelName: result.modelName || defaultSettings.modelName,
             });
           }
+          const enabled = result.localModelEnabled === 'true';
+          setLocalModelEnabled(enabled);
+          setLocalModelName(result.localModelName || '');
           setIsFormDirty(false);
+
+          if (enabled) {
+            const endpoint =
+              result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+            checkOllamaConnection(endpoint)
+              .then(status => setLocalConnectionStatus(status))
+              .catch(() => setLocalConnectionStatus({ type: 'not-running' }));
+          }
         })
         .catch((error: Error) => {
           console.error(`Error loading settings: ${error.message}`);
@@ -78,13 +108,11 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     [storage]
   );
 
-  /* Update model name on change */
   const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setSettings(prev => ({ ...prev, modelName: e.target.value }));
     setIsFormDirty(true);
   };
 
-  /* Update a specific provider's API key */
   const handleApiKeyChange =
     (provider: Provider) => (e: ChangeEvent<HTMLInputElement>) => {
       setSettings(prev => ({
@@ -122,6 +150,40 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       });
   };
 
+  const handleLocalModelToggle = () => {
+    const newEnabled = !localModelEnabled;
+    setLocalModelEnabled(newEnabled);
+
+    storage
+      .get(['localModelEndpoint', 'localModelName'])
+      .then(result => {
+        const endpoint = result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+        const storedModel = result.localModelName || '';
+
+        return storage
+          .set({ localModelEnabled: newEnabled ? 'true' : 'false' })
+          .then(() => {
+            if (newEnabled) {
+              // First time: no endpoint configured → auto-navigate to sub-page
+              if (!result.localModelEndpoint && !result.localModelName) {
+                navigate('/local-model-config');
+                return;
+              }
+              // Already configured: run background connection check
+              setLocalModelName(storedModel);
+              checkOllamaConnection(endpoint)
+                .then(status => setLocalConnectionStatus(status))
+                .catch(() => setLocalConnectionStatus({ type: 'not-running' }));
+            } else {
+              setLocalConnectionStatus(null);
+            }
+          });
+      })
+      .catch((error: Error) => {
+        console.error(`Error toggling local model: ${error.message}`);
+      });
+  };
+
   const handleShowKeysClick = () => setShowKeys(!showKeys);
   const inputType = showKeys ? 'text' : 'password';
   const selectedProvider = getProviderForModel(settings.modelName);
@@ -132,6 +194,29 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       </Button>
     </InputRightElement>
   );
+
+  const localStatusText = (() => {
+    if (!localConnectionStatus) return 'Checking…';
+    const modelDisplay = localModelName
+      ? normalizeModelDisplay(localModelName)
+      : null;
+    switch (localConnectionStatus.type) {
+      case 'connected':
+        return modelDisplay
+          ? `${modelDisplay} · Connected`
+          : 'Connected · No model selected';
+      case 'custom-server':
+        return modelDisplay
+          ? `${modelDisplay} · Connected (custom server)`
+          : 'Connected (custom server) · No model selected';
+      case 'no-models':
+        return 'Connected · No models found';
+      case 'not-running':
+        return 'Not connected';
+    }
+  })();
+
+  const isFirstTimeSetup = !localModelEnabled && !localModelName;
 
   return (
     <>
@@ -150,65 +235,109 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
         </Heading>
       )}
       <form aria-label="Settings form" onSubmit={saveSettings}>
-        <FormControl isRequired mt={6}>
-          <FormLabel>Model Name</FormLabel>
-          <Select
-            id="model-name"
-            name="modelName"
-            value={settings.modelName}
-            onChange={handleModelChange}
-            aria-label="Model Name"
-          >
-            {PROVIDERS.map(provider => (
-              <optgroup key={provider} label={PROVIDER_CONFIG[provider].label}>
-                {LLM_MODEL_OPTIONS.filter(m => m.provider === provider).map(
-                  model => (
-                    <option key={model.value} value={model.value}>
-                      {model.name}
-                    </option>
-                  )
-                )}
-              </optgroup>
-            ))}
-          </Select>
-        </FormControl>
+        {!localModelEnabled && (
+          <>
+            <FormControl isRequired mt={6}>
+              <FormLabel>Model Name</FormLabel>
+              <Select
+                id="model-name"
+                name="modelName"
+                value={settings.modelName}
+                onChange={handleModelChange}
+                aria-label="Model Name"
+              >
+                {PROVIDERS.map(provider => (
+                  <optgroup
+                    key={provider}
+                    label={PROVIDER_CONFIG[provider].label}
+                  >
+                    {LLM_MODEL_OPTIONS.filter(m => m.provider === provider).map(
+                      model => (
+                        <option key={model.value} value={model.value}>
+                          {model.name}
+                        </option>
+                      )
+                    )}
+                  </optgroup>
+                ))}
+              </Select>
+            </FormControl>
 
-        {PROVIDERS.map(
-          provider =>
-            selectedProvider === provider && (
-              <FormControl key={provider} mt={6}>
-                <FormLabel>{PROVIDER_CONFIG[provider].label} API Key</FormLabel>
-                <InputGroup size="md">
-                  <Input
-                    id={`${provider}-api-key`}
-                    pr="4.5rem"
-                    type={inputType}
-                    value={settings.apiKeys[provider]}
-                    onChange={handleApiKeyChange(provider)}
-                    aria-label={`${PROVIDER_CONFIG[provider].label} API Key`}
-                  />
-                  {showHideButton}
-                </InputGroup>
-                <FormHelperText>
-                  {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
-                  <Link href={PROVIDER_CONFIG[provider].helpUrl} isExternal>
-                    {PROVIDER_CONFIG[provider].helpLabel}
-                    <ExternalLinkIcon mx="2px" mb="3px" />
-                  </Link>
-                </FormHelperText>
-              </FormControl>
-            )
+            {PROVIDERS.map(
+              provider =>
+                selectedProvider === provider && (
+                  <FormControl key={provider} mt={6}>
+                    <FormLabel>
+                      {PROVIDER_CONFIG[provider].label} API Key
+                    </FormLabel>
+                    <InputGroup size="md">
+                      <Input
+                        id={`${provider}-api-key`}
+                        pr="4.5rem"
+                        type={inputType}
+                        value={settings.apiKeys[provider]}
+                        onChange={handleApiKeyChange(provider)}
+                        aria-label={`${PROVIDER_CONFIG[provider].label} API Key`}
+                      />
+                      {showHideButton}
+                    </InputGroup>
+                    <FormHelperText>
+                      {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
+                      <Link href={PROVIDER_CONFIG[provider].helpUrl} isExternal>
+                        {PROVIDER_CONFIG[provider].helpLabel}
+                        <ExternalLinkIcon mx="2px" mb="3px" />
+                      </Link>
+                    </FormHelperText>
+                  </FormControl>
+                )
+            )}
+
+            <Button
+              type="submit"
+              colorScheme="green"
+              isDisabled={!isFormDirty}
+              mt={6}
+              w="100%"
+            >
+              Save
+            </Button>
+          </>
         )}
 
-        <Button
-          type="submit"
-          colorScheme="green"
-          isDisabled={!isFormDirty}
-          mt={6}
-          w="100%"
-        >
-          Save
-        </Button>
+        {localModelEnabled && (
+          <Box mt={6}>
+            <HStack justify="space-between" align="center">
+              <Text fontSize="sm">
+                {isFirstTimeSetup ? 'Set up your local model' : localStatusText}
+              </Text>
+              <Link
+                fontSize="sm"
+                color="blue.500"
+                cursor="pointer"
+                onClick={() => navigate('/local-model-config')}
+                aria-label="Configure local model"
+              >
+                Configure
+              </Link>
+            </HStack>
+          </Box>
+        )}
+
+        <Divider mt={6} mb={4} />
+
+        <FormControl>
+          <HStack justify="space-between" align="center">
+            <FormLabel mb={0} htmlFor="local-model-toggle">
+              Use local model (Ollama)
+            </FormLabel>
+            <Switch
+              id="local-model-toggle"
+              isChecked={localModelEnabled}
+              onChange={handleLocalModelToggle}
+              aria-label="Use local model (Ollama)"
+            />
+          </HStack>
+        </FormControl>
       </form>
     </>
   );
