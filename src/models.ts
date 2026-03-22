@@ -1,6 +1,17 @@
 export type Provider = 'openai' | 'anthropic' | 'gemini';
 
 export const LLM_MODELS = Object.freeze({
+  GPT_54: { name: 'GPT-5.4', value: 'gpt-5.4', provider: 'openai' },
+  GPT_54_MINI: {
+    name: 'GPT-5.4 Mini',
+    value: 'gpt-5.4-mini',
+    provider: 'openai',
+  },
+  GPT_54_NANO: {
+    name: 'GPT-5.4 Nano',
+    value: 'gpt-5.4-nano',
+    provider: 'openai',
+  },
   GPT_52: { name: 'GPT-5.2', value: 'gpt-5.2', provider: 'openai' },
   GPT_51: { name: 'GPT-5.1', value: 'gpt-5.1', provider: 'openai' },
   GPT_5: { name: 'GPT-5', value: 'gpt-5', provider: 'openai' },
@@ -21,11 +32,6 @@ export const LLM_MODELS = Object.freeze({
   GPT_41_NANO: {
     name: 'GPT-4.1 Nano',
     value: 'gpt-4.1-nano',
-    provider: 'openai',
-  },
-  GPT_35_TURBO: {
-    name: 'GPT-3.5 Turbo',
-    value: 'gpt-3.5-turbo',
     provider: 'openai',
   },
   CLAUDE_OPUS_4_6: {

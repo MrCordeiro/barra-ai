@@ -5,11 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] - Unreleased
+## [1.3.0] - 2026-03-22
 
 ### Added
 
 - Google Gemini support: `gemini-2.5-pro`, `gemini-1.5-pro`, `gemini-2.0-flash`, `gemini-1.5-flash` and `gemini-2.0-flash-lite`.
+- OpenAI GPT support: `gpt-5.4`, `gpt-5.4-mini`, and `gpt-5.4-nano`.
+
+### Remove
+
+- Removed support for OpenAI `gpt-3.5-turbo`.
 
 ## [1.2.0] - 2026-03-11
 
