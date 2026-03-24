@@ -19,13 +19,17 @@ These require explicit written permission from the project owner to override.
 ## Before every change
 
 1. **Run tests.** All existing tests must pass. Don't land a change that breaks them.
+
    ```bash
    npm test
    ```
+
 2. **Run lint.** ESLint must be clean (zero warnings, zero errors).
+
    ```bash
    npm run lint
    ```
+
 3. **No new dependencies without approval.** Do not add to `dependencies` or `devDependencies` in `package.json`. If a dependency is genuinely needed, propose it and wait for explicit approval before installing.
 4. **Never commit `package-lock.json` changes.** Do not stage or commit modifications to `package-lock.json` unless you are explicitly adding or upgrading a dependency that has been approved.
 
