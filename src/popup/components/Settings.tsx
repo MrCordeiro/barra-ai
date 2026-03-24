@@ -16,6 +16,7 @@ import {
   Select,
   Switch,
   Text,
+  Tooltip,
   useToast,
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
@@ -29,18 +30,17 @@ import {
 } from '../../models';
 import { Storage } from '../../storages';
 import {
-  checkOllamaConnection,
   normalizeModelDisplay,
   DEFAULT_OLLAMA_ENDPOINT,
   OllamaConnectionStatus,
 } from '../../content/ollama';
 
-interface Settings {
+interface CloudSettings {
   apiKeys: Record<Provider, string>;
   modelName: string;
 }
 
-const defaultSettings: Settings = {
+const defaultCloudSettings: CloudSettings = {
   apiKeys: Object.fromEntries(PROVIDERS.map(p => [p, ''])) as Record<
     Provider,
     string
@@ -53,16 +53,38 @@ interface Props {
   showOnboarding?: boolean;
 }
 
+/** Ask the background worker to check Ollama connectivity. */
+async function checkViaBackground(
+  endpoint: string
+): Promise<OllamaConnectionStatus> {
+  const status: OllamaConnectionStatus = await chrome.runtime.sendMessage({
+    type: 'ollama:check',
+    endpoint,
+  });
+  return status;
+}
+
 const Settings = ({ storage, showOnboarding = false }: Props) => {
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [settings, setSettings] = useState<CloudSettings>(defaultCloudSettings);
   const [showKeys, setShowKeys] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
+
+  // Local model state
   const [localModelEnabled, setLocalModelEnabled] = useState(false);
+  const [localModelConfigured, setLocalModelConfigured] = useState(false);
   const [localModelName, setLocalModelName] = useState('');
+  const [localModelEndpoint, setLocalModelEndpoint] = useState(
+    DEFAULT_OLLAMA_ENDPOINT
+  );
   const [localConnectionStatus, setLocalConnectionStatus] =
     useState<OllamaConnectionStatus | null>(null);
+
   const toast = useToast();
   const navigate = useNavigate();
+
+  // Determine layout: both providers configured → show segmented control
+  const cloudConfigured = PROVIDERS.some(p => settings.apiKeys[p]);
+  const showSwitcher = cloudConfigured && localModelConfigured;
 
   useEffect(
     function loadSettings() {
@@ -85,19 +107,35 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             ) as Record<Provider, string>;
             setSettings({
               apiKeys,
-              modelName: result.modelName || defaultSettings.modelName,
+              modelName: result.modelName || defaultCloudSettings.modelName,
             });
           }
+
           const enabled = result.localModelEnabled === 'true';
+          const endpoint = result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+          const configured = !!result.localModelEndpoint;
+
           setLocalModelEnabled(enabled);
+          setLocalModelConfigured(configured);
+          setLocalModelEndpoint(endpoint);
           setLocalModelName(result.localModelName || '');
           setIsFormDirty(false);
 
-          if (enabled) {
-            const endpoint =
-              result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
-            checkOllamaConnection(endpoint)
-              .then(status => setLocalConnectionStatus(status))
+          // Fire async probe if local has ever been configured.
+          if (configured) {
+            checkViaBackground(endpoint)
+              .then(status => {
+                setLocalConnectionStatus(status);
+                // If the stored model is no longer available, clear it (§4.5).
+                if (
+                  status.type === 'connected' &&
+                  result.localModelName &&
+                  !status.models.includes(result.localModelName)
+                ) {
+                  setLocalModelName('');
+                  void storage.set({ localModelName: '' });
+                }
+              })
               .catch(() => setLocalConnectionStatus({ type: 'not-running' }));
           }
         })
@@ -150,34 +188,35 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       });
   };
 
+  /** Segmented-control tab switch — saves localModelEnabled immediately. */
+  const handleTabSwitch = (enableLocal: boolean) => {
+    setLocalModelEnabled(enableLocal);
+    storage
+      .set({ localModelEnabled: enableLocal ? 'true' : 'false' })
+      .catch((error: Error) => {
+        console.error(`Error switching provider tab: ${error.message}`);
+      });
+  };
+
+  /** Toggle (shown only when local is NOT yet configured). */
   const handleLocalModelToggle = () => {
     const newEnabled = !localModelEnabled;
     setLocalModelEnabled(newEnabled);
 
     storage
-      .get(['localModelEndpoint', 'localModelName'])
-      .then(result => {
-        const endpoint = result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
-        const storedModel = result.localModelName || '';
-
-        return storage
-          .set({ localModelEnabled: newEnabled ? 'true' : 'false' })
-          .then(() => {
-            if (newEnabled) {
-              // First time: no endpoint configured → auto-navigate to sub-page
-              if (!result.localModelEndpoint && !result.localModelName) {
-                navigate('/local-model-config');
-                return;
-              }
-              // Already configured: run background connection check
-              setLocalModelName(storedModel);
-              checkOllamaConnection(endpoint)
-                .then(status => setLocalConnectionStatus(status))
-                .catch(() => setLocalConnectionStatus({ type: 'not-running' }));
-            } else {
-              setLocalConnectionStatus(null);
-            }
-          });
+      .set({ localModelEnabled: newEnabled ? 'true' : 'false' })
+      .then(() => {
+        if (newEnabled) {
+          if (!localModelConfigured) {
+            navigate('/local-model-config');
+            return;
+          }
+          checkViaBackground(localModelEndpoint)
+            .then(status => setLocalConnectionStatus(status))
+            .catch(() => setLocalConnectionStatus({ type: 'not-running' }));
+        } else {
+          setLocalConnectionStatus(null);
+        }
       })
       .catch((error: Error) => {
         console.error(`Error toggling local model: ${error.message}`);
@@ -187,6 +226,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const handleShowKeysClick = () => setShowKeys(!showKeys);
   const inputType = showKeys ? 'text' : 'password';
   const selectedProvider = getProviderForModel(settings.modelName);
+
   const showHideButton = (
     <InputRightElement width="4.5rem">
       <Button h="1.75rem" size="xs" onClick={handleShowKeysClick}>
@@ -195,20 +235,22 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     </InputRightElement>
   );
 
+  const localDisplayName = localModelName
+    ? normalizeModelDisplay(localModelName)
+    : 'No model selected';
+
+  const localTabWarning =
+    localConnectionStatus?.type === 'not-running' ||
+    localConnectionStatus?.type === 'no-models';
+
   const localStatusText = (() => {
     if (!localConnectionStatus) return 'Checking…';
-    const modelDisplay = localModelName
-      ? normalizeModelDisplay(localModelName)
-      : null;
     switch (localConnectionStatus.type) {
       case 'connected':
-        return modelDisplay
-          ? `${modelDisplay} · Connected`
-          : 'Connected · No model selected';
       case 'custom-server':
-        return modelDisplay
-          ? `${modelDisplay} · Connected (custom server)`
-          : 'Connected (custom server) · No model selected';
+        return localModelName
+          ? `${normalizeModelDisplay(localModelName)} · Connected`
+          : 'Connected · No model selected';
       case 'no-models':
         return 'Connected · No models found';
       case 'not-running':
@@ -216,7 +258,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     }
   })();
 
-  const isFirstTimeSetup = !localModelEnabled && !localModelName;
+  const cloudModelDisplay = normalizeModelDisplay(settings.modelName);
 
   return (
     <>
@@ -234,10 +276,81 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           Settings
         </Heading>
       )}
+
+      {/* ── Segmented control (both providers configured) ── */}
+      {showSwitcher && (
+        <HStack
+          spacing={0}
+          mb={4}
+          borderRadius="md"
+          overflow="hidden"
+          border="1px solid"
+          borderColor="gray.200"
+        >
+          <Tooltip label={settings.modelName} hasArrow placement="top">
+            <Button
+              flex={1}
+              variant={!localModelEnabled ? 'solid' : 'ghost'}
+              colorScheme={!localModelEnabled ? 'blue' : undefined}
+              borderRadius={0}
+              onClick={() => handleTabSwitch(false)}
+              aria-pressed={!localModelEnabled}
+              aria-label={`Cloud provider: ${settings.modelName}`}
+              size="sm"
+              py={6}
+            >
+              <Box textAlign="center">
+                <Text fontSize="sm" fontWeight="bold" isTruncated maxW="100px">
+                  {cloudModelDisplay}
+                </Text>
+                <Text
+                  fontSize="xs"
+                  color={!localModelEnabled ? 'blue.100' : 'gray.500'}
+                >
+                  ☁ Cloud
+                </Text>
+              </Box>
+            </Button>
+          </Tooltip>
+
+          <Tooltip
+            label={localModelName || 'No model selected'}
+            hasArrow
+            placement="top"
+          >
+            <Button
+              flex={1}
+              variant={localModelEnabled ? 'solid' : 'ghost'}
+              colorScheme={localModelEnabled ? 'blue' : undefined}
+              borderRadius={0}
+              onClick={() => handleTabSwitch(true)}
+              aria-pressed={localModelEnabled}
+              aria-label={`Local provider: ${localDisplayName}`}
+              size="sm"
+              py={6}
+            >
+              <Box textAlign="center">
+                <Text fontSize="sm" fontWeight="bold" isTruncated maxW="100px">
+                  {localDisplayName}
+                  {localTabWarning ? ' ⚠' : ''}
+                </Text>
+                <Text
+                  fontSize="xs"
+                  color={localModelEnabled ? 'blue.100' : 'gray.500'}
+                >
+                  ⊙ Local
+                </Text>
+              </Box>
+            </Button>
+          </Tooltip>
+        </HStack>
+      )}
+
       <form aria-label="Settings form" onSubmit={saveSettings}>
+        {/* ── Cloud fields (visible when cloud tab active or no switcher + local off) ── */}
         {!localModelEnabled && (
           <>
-            <FormControl isRequired mt={6}>
+            <FormControl isRequired mt={showSwitcher ? 0 : 6}>
               <FormLabel>Model Name</FormLabel>
               <Select
                 id="model-name"
@@ -292,24 +405,44 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
                 )
             )}
 
-            <Button
-              type="submit"
-              colorScheme="green"
-              isDisabled={!isFormDirty}
-              mt={6}
-              w="100%"
-            >
-              Save
-            </Button>
+            {!showSwitcher && (
+              <Button
+                type="submit"
+                colorScheme="green"
+                isDisabled={!isFormDirty}
+                mt={6}
+                w="100%"
+              >
+                Save
+              </Button>
+            )}
           </>
         )}
 
+        {/* Save button when switcher is shown and cloud tab is active */}
+        {showSwitcher && !localModelEnabled && (
+          <Button
+            type="submit"
+            colorScheme="green"
+            isDisabled={!isFormDirty}
+            mt={6}
+            w="100%"
+          >
+            Save
+          </Button>
+        )}
+
+        {/* ── Local model status (visible when local tab active or toggle ON) ── */}
         {localModelEnabled && (
-          <Box mt={6}>
-            <HStack justify="space-between" align="center">
-              <Text fontSize="sm">
-                {isFirstTimeSetup ? 'Set up your local model' : localStatusText}
+          <Box mt={showSwitcher ? 0 : 6}>
+            {localConnectionStatus?.type === 'not-running' && (
+              <Text fontSize="sm" color="red.500" mb={2}>
+                ⚠ Can&apos;t reach Ollama. Requests will fail until Ollama is
+                running.
               </Text>
+            )}
+            <HStack justify="space-between" align="center">
+              <Text fontSize="sm">{localStatusText}</Text>
               <Link
                 fontSize="sm"
                 color="blue.500"
@@ -323,21 +456,25 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           </Box>
         )}
 
-        <Divider mt={6} mb={4} />
-
-        <FormControl>
-          <HStack justify="space-between" align="center">
-            <FormLabel mb={0} htmlFor="local-model-toggle">
-              Use local model (Ollama)
-            </FormLabel>
-            <Switch
-              id="local-model-toggle"
-              isChecked={localModelEnabled}
-              onChange={handleLocalModelToggle}
-              aria-label="Use local model (Ollama)"
-            />
-          </HStack>
-        </FormControl>
+        {/* ── Toggle (only when local has NOT been configured yet) ── */}
+        {!showSwitcher && (
+          <>
+            <Divider mt={6} mb={4} />
+            <FormControl>
+              <HStack justify="space-between" align="center">
+                <FormLabel mb={0} htmlFor="local-model-toggle">
+                  Use local model (Ollama)
+                </FormLabel>
+                <Switch
+                  id="local-model-toggle"
+                  isChecked={localModelEnabled}
+                  onChange={handleLocalModelToggle}
+                  aria-label="Use local model (Ollama)"
+                />
+              </HStack>
+            </FormControl>
+          </>
+        )}
       </form>
     </>
   );

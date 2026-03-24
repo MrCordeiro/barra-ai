@@ -5,7 +5,6 @@ import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
 import { Storage } from '../../storages';
 import Settings from '../components/Settings';
-import * as ollamaModule from '../../content/ollama';
 
 /**
  * A mock storage object that saves data in memory
@@ -62,9 +61,17 @@ jest.mock('@chakra-ui/react', () => {
   };
 });
 
+/** Reset the chrome.runtime.sendMessage mock to the given resolved value. */
+function mockOllamaCheck(
+  result: { type: string; models?: string[] } = { type: 'not-running' }
+) {
+  (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue(result);
+}
+
 describe('<Settings />', () => {
   beforeEach(() => {
     mockStorage.savedData = {};
+    mockOllamaCheck({ type: 'not-running' });
   });
 
   afterEach(() => {
@@ -165,11 +172,13 @@ describe('<Settings />', () => {
     });
     fireEvent.click(getByRole('button', { name: /Save/i }));
 
-    expect(mockStorage.savedData).toEqual({
-      openaiApiKey: 'my-openai-key',
-      anthropicApiKey: 'my-anthropic-key',
-      geminiApiKey: '',
-      modelName: openAIModel,
+    await waitFor(() => {
+      expect(mockStorage.savedData).toMatchObject({
+        openaiApiKey: 'my-openai-key',
+        anthropicApiKey: 'my-anthropic-key',
+        geminiApiKey: '',
+        modelName: openAIModel,
+      });
     });
 
     await waitFor(() => {
@@ -267,6 +276,8 @@ describe('<Settings />', () => {
     expect(queryByLabelText(/Anthropic API Key/i)).not.toBeInTheDocument();
   });
 
+  // ── Local model toggle (only shown when local has NOT been configured) ──
+
   test('local model toggle is off by default', () => {
     render(<Settings storage={mockStorage} />);
 
@@ -277,9 +288,7 @@ describe('<Settings />', () => {
   });
 
   test('toggling local model ON hides cloud fields and shows Configure link', async () => {
-    jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'connected', models: ['llama3.2:latest'] });
+    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
 
     render(<Settings storage={mockStorage} />);
 
@@ -300,9 +309,7 @@ describe('<Settings />', () => {
   test('toggling local model ON saves localModelEnabled=true to storage', async () => {
     const mockNavigate = jest.fn();
     (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
-    jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'not-running' });
+    mockOllamaCheck({ type: 'not-running' });
 
     render(<Settings storage={mockStorage} />);
 
@@ -332,15 +339,13 @@ describe('<Settings />', () => {
     });
   });
 
-  test('shows connection status when local model is already enabled', async () => {
+  test('shows connection status when local model is already enabled (no switcher)', async () => {
     mockStorage.savedData = {
       localModelEnabled: 'true',
       localModelEndpoint: 'http://localhost:11434',
       localModelName: 'llama3.2:latest',
     };
-    jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'connected', models: ['llama3.2:latest'] });
+    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
 
     render(<Settings storage={mockStorage} />);
 
@@ -355,9 +360,7 @@ describe('<Settings />', () => {
       localModelEndpoint: 'http://localhost:11434',
       localModelName: 'llama3.2:latest',
     };
-    jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'connected', models: ['llama3.2:latest'] });
+    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
 
     render(<Settings storage={mockStorage} />);
 
@@ -373,6 +376,108 @@ describe('<Settings />', () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText(/Model Name/i)).toBeInTheDocument();
+    });
+  });
+
+  // ── Segmented control (both cloud key + local endpoint configured) ──
+
+  test('shows segmented control when both cloud and local are configured', async () => {
+    mockStorage.savedData = {
+      openaiApiKey: 'sk-test',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'llama3.2:latest',
+      localModelEnabled: 'false',
+    };
+    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
+
+    render(<Settings storage={mockStorage} />);
+
+    await waitFor(() => {
+      // Cloud tab visible
+      expect(
+        screen.getByRole('button', { name: /Cloud provider/i })
+      ).toBeInTheDocument();
+      // Local tab visible
+      expect(
+        screen.getByRole('button', { name: /Local provider/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  test('does not show toggle when switcher is visible', async () => {
+    mockStorage.savedData = {
+      openaiApiKey: 'sk-test',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'llama3.2:latest',
+      localModelEnabled: 'false',
+    };
+    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
+
+    render(<Settings storage={mockStorage} />);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('checkbox', { name: /Use local model/i })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  test('clicking local tab saves localModelEnabled=true', async () => {
+    mockStorage.savedData = {
+      openaiApiKey: 'sk-test',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'llama3.2:latest',
+      localModelEnabled: 'false',
+    };
+    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
+
+    render(<Settings storage={mockStorage} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /Local provider/i })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Local provider/i }));
+
+    await waitFor(() => {
+      expect(mockStorage.savedData?.localModelEnabled).toBe('true');
+    });
+  });
+
+  test('local tab shows warning icon when Ollama is unreachable', async () => {
+    mockStorage.savedData = {
+      openaiApiKey: 'sk-test',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'llama3.2:latest',
+      localModelEnabled: 'false',
+    };
+    mockOllamaCheck({ type: 'not-running' });
+
+    render(<Settings storage={mockStorage} />);
+
+    await waitFor(() => {
+      const localTab = screen.getByRole('button', { name: /Local provider/i });
+      expect(localTab).toHaveTextContent('⚠');
+    });
+  });
+
+  test('cloud tab shows normalized cloud model name', async () => {
+    mockStorage.savedData = {
+      openaiApiKey: 'sk-test',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'llama3.2:latest',
+      localModelEnabled: 'false',
+    };
+    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
+
+    render(<Settings storage={mockStorage} />);
+
+    await waitFor(() => {
+      const cloudTab = screen.getByRole('button', { name: /Cloud provider/i });
+      // Default cloud model name should appear in the tab
+      expect(cloudTab).toHaveTextContent(DEFAULT_LLM_MODEL.value);
     });
   });
 });

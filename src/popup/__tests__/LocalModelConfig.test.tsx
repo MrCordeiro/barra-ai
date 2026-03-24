@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import { Storage } from '../../storages';
 import LocalModelConfig from '../components/LocalModelConfig';
-import * as ollamaModule from '../../content/ollama';
+import { OllamaConnectionStatus } from '../../content/ollama';
 
 const mockStorage: Storage & { savedData?: Record<string, string> } = {
   savedData: {},
@@ -26,10 +26,15 @@ const mockStorage: Storage & { savedData?: Record<string, string> } = {
   removeChangeListener: jest.fn(),
 };
 
+/** Set what the background connection check will return. */
+function mockCheck(status: OllamaConnectionStatus) {
+  (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue(status);
+}
+
 describe('<LocalModelConfig />', () => {
   beforeEach(() => {
     mockStorage.savedData = {};
-    jest.spyOn(ollamaModule, 'checkOllamaConnection').mockResolvedValue({
+    mockCheck({
       type: 'connected',
       models: ['llama3.2:latest', 'mistral:latest'],
     });
@@ -59,9 +64,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows not-running error when connection fails', async () => {
-    jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'not-running' });
+    mockCheck({ type: 'not-running' });
 
     render(<LocalModelConfig storage={mockStorage} />);
 
@@ -73,9 +76,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows no-models message when Ollama is running but empty', async () => {
-    jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'no-models' });
+    mockCheck({ type: 'no-models' });
 
     render(<LocalModelConfig storage={mockStorage} />);
 
@@ -98,9 +99,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('model dropdown is disabled when not connected', async () => {
-    jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'not-running' });
+    mockCheck({ type: 'not-running' });
 
     render(<LocalModelConfig storage={mockStorage} />);
 
@@ -112,9 +111,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows text input for custom server instead of dropdown', async () => {
-    jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'custom-server' });
+    mockCheck({ type: 'custom-server' });
 
     render(<LocalModelConfig storage={mockStorage} />);
 
@@ -126,16 +123,13 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('auto-selects model when only one is available', async () => {
-    jest.spyOn(ollamaModule, 'checkOllamaConnection').mockResolvedValue({
-      type: 'connected',
-      models: ['llama3.2:latest'],
-    });
+    mockCheck({ type: 'connected', models: ['llama3.2:latest'] });
 
     render(<LocalModelConfig storage={mockStorage} />);
 
     await waitFor(() => {
       const select = screen.getByLabelText('Local model');
-      expect(select.value).toBe('llama3.2:latest');
+      expect((select as HTMLSelectElement).value).toBe('llama3.2:latest');
     });
   });
 
@@ -169,10 +163,10 @@ describe('<LocalModelConfig />', () => {
     render(<LocalModelConfig storage={mockStorage} />);
 
     await waitFor(() => {
-      const endpointInput = screen.getByLabelText(
-        'Ollama endpoint'
+      const endpointInput = screen.getByLabelText('Ollama endpoint');
+      expect((endpointInput as HTMLInputElement).value).toBe(
+        'http://192.168.1.5:11434'
       );
-      expect(endpointInput.value).toBe('http://192.168.1.5:11434');
     });
   });
 
@@ -192,9 +186,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('Check again button triggers connection check', async () => {
-    jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'not-running' });
+    mockCheck({ type: 'not-running' });
 
     render(<LocalModelConfig storage={mockStorage} />);
 
@@ -204,14 +196,11 @@ describe('<LocalModelConfig />', () => {
       ).toBeInTheDocument();
     });
 
-    const checkAgainSpy = jest
-      .spyOn(ollamaModule, 'checkOllamaConnection')
-      .mockResolvedValue({ type: 'connected', models: ['llama3.2:latest'] });
-
+    mockCheck({ type: 'connected', models: ['llama3.2:latest'] });
     fireEvent.click(screen.getByRole('button', { name: /Check again/i }));
 
     await waitFor(() => {
-      expect(checkAgainSpy).toHaveBeenCalled();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -221,5 +210,15 @@ describe('<LocalModelConfig />', () => {
     expect(
       screen.getByText(/Local models vary in quality/)
     ).toBeInTheDocument();
+  });
+
+  test('routes connection check through background (sends ollama:check message)', async () => {
+    render(<LocalModelConfig storage={mockStorage} />);
+
+    await waitFor(() => {
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'ollama:check' })
+      );
+    });
   });
 });

@@ -22,7 +22,6 @@ import {
 } from '@chakra-ui/react';
 import { ArrowBackIcon } from '@chakra-ui/icons';
 import {
-  checkOllamaConnection,
   normalizeModelDisplay,
   DEFAULT_OLLAMA_ENDPOINT,
   OllamaConnectionStatus,
@@ -57,7 +56,8 @@ const LocalModelConfig = ({ storage }: Props) => {
     storage
       .get(['localModelEndpoint', 'localModelName'])
       .then(result => {
-        const savedEndpoint = result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+        const savedEndpoint =
+          result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
         const savedModel = result.localModelName || '';
         setEndpoint(savedEndpoint);
         setSelectedModel(savedModel);
@@ -73,7 +73,10 @@ const LocalModelConfig = ({ storage }: Props) => {
   async function runConnectionCheck(url: string) {
     setIsChecking(true);
     try {
-      const status = await checkOllamaConnection(url);
+      const status: OllamaConnectionStatus = await chrome.runtime.sendMessage({
+        type: 'ollama:check',
+        endpoint: url,
+      });
       setConnectionStatus(status);
       // If only one model available, auto-select it
       if (status.type === 'connected' && status.models.length === 1) {
