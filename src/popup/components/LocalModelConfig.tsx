@@ -5,7 +5,6 @@ import {
   type ChangeEvent,
   type FocusEvent,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   AlertIcon,
@@ -15,12 +14,10 @@ import {
   FormLabel,
   FormHelperText,
   Heading,
-  HStack,
   Input,
   Select,
   Text,
 } from '@chakra-ui/react';
-import { ArrowBackIcon } from '@chakra-ui/icons';
 import {
   normalizeModelDisplay,
   DEFAULT_OLLAMA_ENDPOINT,
@@ -32,17 +29,20 @@ interface Props {
   storage: Storage;
 }
 
-function isValidUrl(value: string): boolean {
+const ALLOWED_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
+
+function normalizeLocalEndpoint(value: string): string | null {
   try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
+    const url = new URL(value.trim());
+    if (url.protocol !== 'http:') return null;
+    if (!ALLOWED_LOCAL_HOSTS.has(url.hostname)) return null;
+    return url.origin;
   } catch {
-    return false;
+    return null;
   }
 }
 
 const LocalModelConfig = ({ storage }: Props) => {
-  const navigate = useNavigate();
   const [endpoint, setEndpoint] = useState(DEFAULT_OLLAMA_ENDPOINT);
   const [selectedModel, setSelectedModel] = useState('');
   const [endpointError, setEndpointError] = useState('');
@@ -57,11 +57,12 @@ const LocalModelConfig = ({ storage }: Props) => {
       .get(['localModelEndpoint', 'localModelName'])
       .then(result => {
         const savedEndpoint =
-          result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+          normalizeLocalEndpoint(result.localModelEndpoint ?? '') ??
+          DEFAULT_OLLAMA_ENDPOINT;
         const savedModel = result.localModelName || '';
         setEndpoint(savedEndpoint);
         setSelectedModel(savedModel);
-        void runConnectionCheck(savedEndpoint);
+        void runConnectionCheck(savedEndpoint, savedModel);
       })
       .catch((error: Error) => {
         console.error(`Error loading local model config: ${error.message}`);
@@ -70,7 +71,10 @@ const LocalModelConfig = ({ storage }: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function runConnectionCheck(url: string) {
+  async function runConnectionCheck(
+    url: string,
+    currentSelectedModel = selectedModel
+  ) {
     setIsChecking(true);
     try {
       const status: OllamaConnectionStatus = await chrome.runtime.sendMessage({
@@ -78,17 +82,26 @@ const LocalModelConfig = ({ storage }: Props) => {
         endpoint: url,
       });
       setConnectionStatus(status);
+      let resolvedSelectedModel = currentSelectedModel;
       // If only one model available, auto-select it
-      if (status.type === 'connected' && status.models.length === 1) {
+      if (
+        status.type === 'connected' &&
+        status.models.length === 1 &&
+        !resolvedSelectedModel
+      ) {
         const model = status.models[0];
-        setSelectedModel(prev => (prev ? prev : model));
+        resolvedSelectedModel = model;
+        setSelectedModel(model);
+        await storage.set({ localModelName: model });
       }
       // If previously selected model is no longer in the list, clear it (§6.3)
-      if (status.type === 'connected') {
-        setSelectedModel(prev => {
-          if (prev && !status.models.includes(prev)) return '';
-          return prev;
-        });
+      if (
+        status.type === 'connected' &&
+        resolvedSelectedModel &&
+        !status.models.includes(resolvedSelectedModel)
+      ) {
+        setSelectedModel('');
+        await storage.set({ localModelName: '' });
       }
     } catch {
       setConnectionStatus({ type: 'not-running' });
@@ -104,26 +117,32 @@ const LocalModelConfig = ({ storage }: Props) => {
     // Debounced connection check (§4.3)
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      if (isValidUrl(value)) {
-        void saveAndCheck(value, selectedModel);
+      const normalized = normalizeLocalEndpoint(value);
+      if (normalized) {
+        setEndpoint(normalized);
+        void saveAndCheck(normalized, selectedModel);
       }
     }, 800);
   }
 
   function handleEndpointBlur(e: FocusEvent<HTMLInputElement>) {
     const value = e.target.value;
-    if (!isValidUrl(value)) {
-      setEndpointError('Must be a valid URL (e.g. http://localhost:11434)');
+    const normalized = normalizeLocalEndpoint(value);
+    if (!normalized) {
+      setEndpointError(
+        'Must be a valid local URL (http://localhost, 127.0.0.1, or 0.0.0.0)'
+      );
       return;
     }
+    setEndpoint(normalized);
     setEndpointError('');
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    void saveAndCheck(value, selectedModel);
+    void saveAndCheck(normalized, selectedModel);
   }
 
   async function saveAndCheck(url: string, model: string) {
     await storage.set({ localModelEndpoint: url, localModelName: model });
-    await runConnectionCheck(url);
+    await runConnectionCheck(url, model);
   }
 
   function handleModelChange(e: ChangeEvent<HTMLSelectElement>) {
@@ -136,13 +155,11 @@ const LocalModelConfig = ({ storage }: Props) => {
       });
   }
 
-  function handleBack() {
-    navigate('/settings');
-  }
-
   function handleCheckAgain() {
-    if (isValidUrl(endpoint)) {
-      void saveAndCheck(endpoint, selectedModel);
+    const normalized = normalizeLocalEndpoint(endpoint);
+    if (normalized) {
+      setEndpoint(normalized);
+      void saveAndCheck(normalized, selectedModel);
     }
   }
 
@@ -156,18 +173,6 @@ const LocalModelConfig = ({ storage }: Props) => {
 
   return (
     <Box>
-      <HStack mb={4}>
-        <Button
-          variant="ghost"
-          size="sm"
-          leftIcon={<ArrowBackIcon />}
-          onClick={handleBack}
-          aria-label="Back to settings"
-        >
-          Back
-        </Button>
-      </HStack>
-
       <Heading as="h2" size="md" mb={4}>
         Local Model Setup
       </Heading>
@@ -314,3 +319,15 @@ function ConnectionStatusDisplay({
 }
 
 export default LocalModelConfig;
+
+// FIXME - Back arrow should return to previous page, not always home
+// FIXME - Back arrow overlaps with title
+// FIXME - Title alignment inconsistent with other pages (should be centered)
+// FIXME - Background "ends" when error message appears, leaving a blank area below it
+// FIXME - Connection error message should be inline with the command suggestion, not in a separate box
+// TODO - Add loading incator when checking connection
+// TODO - Rethink home screen (it's kinda pointless)
+// TODO - Rethink how users find "local". Too prominent
+// TODO - "Cloud" is not a common term. Maybe just use the model name (e.g. "gpt-4o")
+// FIXME - Message "Run models on your machine via Ollama. You need Ollama installed and running. If that means nothing to you, turn this off in settings." is untrue. There is no off button in the settings
+// TODO - Refactor. Some of the code looks complicated. Logic should be extracted.

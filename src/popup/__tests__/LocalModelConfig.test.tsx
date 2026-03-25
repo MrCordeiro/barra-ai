@@ -150,13 +150,13 @@ describe('<LocalModelConfig />', () => {
     fireEvent.blur(endpointInput);
 
     await waitFor(() => {
-      expect(screen.getByText(/Must be a valid URL/)).toBeInTheDocument();
+      expect(screen.getByText(/Must be a valid local URL/)).toBeInTheDocument();
     });
   });
 
-  test('loads saved endpoint and model from storage', async () => {
+  test('loads and normalizes saved endpoint from storage', async () => {
     mockStorage.savedData = {
-      localModelEndpoint: 'http://192.168.1.5:11434',
+      localModelEndpoint: 'http://localhost:11434/v1',
       localModelName: 'mistral:latest',
     };
 
@@ -165,8 +165,51 @@ describe('<LocalModelConfig />', () => {
     await waitFor(() => {
       const endpointInput = screen.getByLabelText('Ollama endpoint');
       expect((endpointInput as HTMLInputElement).value).toBe(
-        'http://192.168.1.5:11434'
+        'http://localhost:11434'
       );
+    });
+  });
+
+  test('normalizes endpoint to origin when saving on blur', async () => {
+    render(<LocalModelConfig storage={mockStorage} />);
+
+    const endpointInput = screen.getByLabelText('Ollama endpoint');
+    fireEvent.change(endpointInput, {
+      target: { value: 'http://127.0.0.1:11434/v1/' },
+    });
+    fireEvent.blur(endpointInput);
+
+    await waitFor(() => {
+      expect(mockStorage.savedData?.localModelEndpoint).toBe(
+        'http://127.0.0.1:11434'
+      );
+    });
+  });
+
+  test('persists auto-selected single model to storage', async () => {
+    mockCheck({ type: 'connected', models: ['llama3.2:latest'] });
+
+    render(<LocalModelConfig storage={mockStorage} />);
+
+    await waitFor(() => {
+      expect(mockStorage.savedData?.localModelName).toBe('llama3.2:latest');
+    });
+  });
+
+  test('clears stale selected model from storage when unavailable', async () => {
+    mockStorage.savedData = {
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'stale:model',
+    };
+    mockCheck({
+      type: 'connected',
+      models: ['llama3.2:latest', 'mistral:latest'],
+    });
+
+    render(<LocalModelConfig storage={mockStorage} />);
+
+    await waitFor(() => {
+      expect(mockStorage.savedData?.localModelName).toBe('');
     });
   });
 

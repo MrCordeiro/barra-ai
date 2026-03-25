@@ -121,8 +121,8 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           setLocalModelName(result.localModelName || '');
           setIsFormDirty(false);
 
-          // Fire async probe if local has ever been configured.
-          if (configured) {
+          // Probe when local mode is enabled, even if endpoint was never saved.
+          if (enabled || configured) {
             checkViaBackground(endpoint)
               .then(status => {
                 setLocalConnectionStatus(status);

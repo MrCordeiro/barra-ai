@@ -26,10 +26,30 @@ interface StartMessage {
   prompt: string;
 }
 
+function normalizeEndpointOrigin(endpoint: string): string {
+  try {
+    return new URL(endpoint).origin;
+  } catch {
+    return DEFAULT_OLLAMA_ENDPOINT;
+  }
+}
+
 function categorizeError(error: unknown): ErrorMessage['code'] {
   const msg = error instanceof Error ? error.message : String(error);
+  const lower = msg.toLowerCase();
   if (msg.includes('No local model selected')) return 'model_gone';
-  if (msg.toLowerCase().includes('cors')) return 'cors';
+  if (lower.includes('cors')) return 'cors';
+  if (
+    lower.includes('failed to fetch') ||
+    lower.includes('networkerror') ||
+    lower.includes('network error') ||
+    lower.includes('net::err_internet_disconnected') ||
+    lower.includes('net::err_name_not_resolved') ||
+    lower.includes('net::err_connection_refused') ||
+    lower.includes('net::err_connection_timed_out')
+  ) {
+    return 'unreachable';
+  }
   return 'unknown';
 }
 
@@ -88,7 +108,9 @@ export async function updateCorsRule(): Promise<void> {
     'localModelEndpoint',
   ]);
   const enabled = stored.localModelEnabled === 'true';
-  const endpoint = stored.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+  const endpoint = normalizeEndpointOrigin(
+    stored.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT
+  );
 
   if (enabled) {
     await chrome.declarativeNetRequest.updateDynamicRules({

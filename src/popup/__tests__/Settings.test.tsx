@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@chakra-ui/react';
 import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
+import { DEFAULT_OLLAMA_ENDPOINT } from '../../content/ollama';
 import { Storage } from '../../storages';
 import Settings from '../components/Settings';
 
@@ -351,6 +352,23 @@ describe('<Settings />', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/llama3\.2 · Connected/)).toBeInTheDocument();
+    });
+  });
+
+  test('probes default endpoint when local mode is enabled without saved endpoint', async () => {
+    mockStorage.savedData = {
+      localModelEnabled: 'true',
+      localModelName: 'llama3.2:latest',
+    };
+    mockOllamaCheck({ type: 'not-running' });
+
+    render(<Settings storage={mockStorage} />);
+
+    await waitFor(() => {
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+        type: 'ollama:check',
+        endpoint: DEFAULT_OLLAMA_ENDPOINT,
+      });
     });
   });
 

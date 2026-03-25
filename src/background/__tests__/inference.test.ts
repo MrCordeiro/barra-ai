@@ -122,6 +122,21 @@ describe('handleInferencePort', () => {
     );
   });
 
+  test('categorizes network errors as unreachable', async () => {
+    mockFetchAIResponse.mockRejectedValue(new Error('Failed to fetch'));
+
+    const { handleInferencePort } = loadModule();
+    const port = makePort();
+    handleInferencePort(port as unknown as chrome.runtime.Port);
+    port.trigger({ type: 'start', prompt: 'test' });
+
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(port.posted).toContainEqual(
+      expect.objectContaining({ type: 'error', code: 'unreachable' })
+    );
+  });
+
   test('ignores messages that are not type "start"', async () => {
     const { handleInferencePort } = loadModule();
     const port = makePort();
@@ -188,6 +203,30 @@ describe('updateCorsRule', () => {
       expect.objectContaining({
         addRules: expect.arrayContaining([expect.objectContaining({ id: 1 })]),
         removeRuleIds: [1],
+      })
+    );
+  });
+
+  test('normalizes endpoint path to origin in rule values', async () => {
+    const { updateCorsRule } = loadModule('true', 'http://localhost:11434/v1/');
+    await updateCorsRule();
+
+    expect(
+      chrome.declarativeNetRequest.updateDynamicRules
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        addRules: expect.arrayContaining([
+          expect.objectContaining({
+            action: expect.objectContaining({
+              requestHeaders: expect.arrayContaining([
+                expect.objectContaining({ value: 'http://localhost:11434' }),
+              ]),
+            }),
+            condition: expect.objectContaining({
+              urlFilter: 'http://localhost:11434/*',
+            }),
+          }),
+        ]),
       })
     );
   });

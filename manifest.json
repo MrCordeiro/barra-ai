@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Barra/AI",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Barra/AI - summon AI with a slash",
   "icons": {
     "16": "icons/icon_16.png",
