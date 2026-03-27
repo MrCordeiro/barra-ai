@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Divider,
   FormControl,
-  FormLabel,
   FormHelperText,
+  FormLabel,
   Heading,
   HStack,
   Input,
@@ -14,9 +13,7 @@ import {
   InputRightElement,
   Link,
   Select,
-  Switch,
   Text,
-  Tooltip,
   useToast,
 } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
@@ -30,8 +27,8 @@ import {
 } from '../../models';
 import { Storage } from '../../storages';
 import {
-  normalizeModelDisplay,
   DEFAULT_OLLAMA_ENDPOINT,
+  normalizeModelDisplay,
   OllamaConnectionStatus,
 } from '../../content/ollama';
 
@@ -53,8 +50,7 @@ interface Props {
   showOnboarding?: boolean;
 }
 
-/** Ask the background worker to check Ollama connectivity. */
-async function checkViaBackground(
+async function checkOllamaConn(
   endpoint: string
 ): Promise<OllamaConnectionStatus> {
   const status: OllamaConnectionStatus = await chrome.runtime.sendMessage({
@@ -64,27 +60,33 @@ async function checkViaBackground(
   return status;
 }
 
+const cloudModelValues = new Set<string>(
+  LLM_MODEL_OPTIONS.map(model => model.value)
+);
+
 const Settings = ({ storage, showOnboarding = false }: Props) => {
   const [settings, setSettings] = useState<CloudSettings>(defaultCloudSettings);
   const [showKeys, setShowKeys] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
 
-  // Local model state
-  const [localModelEnabled, setLocalModelEnabled] = useState(false);
-  const [localModelConfigured, setLocalModelConfigured] = useState(false);
-  const [localModelName, setLocalModelName] = useState('');
   const [localModelEndpoint, setLocalModelEndpoint] = useState(
     DEFAULT_OLLAMA_ENDPOINT
   );
-  const [localConnectionStatus, setLocalConnectionStatus] =
+  const [localModelName, setLocalModelName] = useState('');
+  const [localModelConfigured, setLocalModelConfigured] = useState(false);
+  const [localConnStatus, setLocalConnStatus] =
     useState<OllamaConnectionStatus | null>(null);
+  const [ollamaNoticeShown, setOllamaNoticeShown] = useState(false);
 
   const toast = useToast();
   const navigate = useNavigate();
 
-  // Determine layout: both providers configured → show segmented control
-  const cloudConfigured = PROVIDERS.some(p => settings.apiKeys[p]);
-  const showSwitcher = cloudConfigured && localModelConfigured;
+  const refreshOllamaStatus = (endpoint: string) => {
+    setLocalConnStatus(null);
+    checkOllamaConn(endpoint)
+      .then(status => setLocalConnStatus(status))
+      .catch(() => setLocalConnStatus({ type: 'not-running' }));
+  };
 
   useEffect(
     function loadSettings() {
@@ -93,51 +95,30 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
         .get([
           ...storageKeys,
           'modelName',
-          'localModelEnabled',
           'localModelEndpoint',
           'localModelName',
+          'ollamaNoticeShown',
         ])
         .then(result => {
-          if (storageKeys.some(k => result[k]) || result.modelName) {
-            const apiKeys = Object.fromEntries(
-              PROVIDERS.map(p => [
-                p,
-                result[PROVIDER_CONFIG[p].storageKey] || '',
-              ])
-            ) as Record<Provider, string>;
-            setSettings({
-              apiKeys,
-              modelName: result.modelName || defaultCloudSettings.modelName,
-            });
-          }
+          const normalizedApiKeys = Object.fromEntries(
+            PROVIDERS.map(p => [p, result[PROVIDER_CONFIG[p].storageKey] ?? ''])
+          ) as Record<Provider, string>;
 
-          const enabled = result.localModelEnabled === 'true';
+          setSettings({
+            apiKeys: normalizedApiKeys,
+            modelName: result.modelName || defaultCloudSettings.modelName,
+          });
+
           const endpoint = result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
           const configured = !!result.localModelEndpoint;
 
-          setLocalModelEnabled(enabled);
           setLocalModelConfigured(configured);
           setLocalModelEndpoint(endpoint);
           setLocalModelName(result.localModelName || '');
+          setOllamaNoticeShown(result.ollamaNoticeShown === 'true');
           setIsFormDirty(false);
 
-          // Probe when local mode is enabled, even if endpoint was never saved.
-          if (enabled || configured) {
-            checkViaBackground(endpoint)
-              .then(status => {
-                setLocalConnectionStatus(status);
-                // If the stored model is no longer available, clear it (§4.5).
-                if (
-                  status.type === 'connected' &&
-                  result.localModelName &&
-                  !status.models.includes(result.localModelName)
-                ) {
-                  setLocalModelName('');
-                  void storage.set({ localModelName: '' });
-                }
-              })
-              .catch(() => setLocalConnectionStatus({ type: 'not-running' }));
-          }
+          refreshOllamaStatus(endpoint);
         })
         .catch((error: Error) => {
           console.error(`Error loading settings: ${error.message}`);
@@ -146,10 +127,36 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     [storage]
   );
 
-  const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setSettings(prev => ({ ...prev, modelName: e.target.value }));
-    setIsFormDirty(true);
+  const isLocalModelStale = (
+    connStatus: OllamaConnectionStatus | null,
+    modelName: string
+  ) => {
+    if (connStatus?.type !== 'connected') return false;
+    if (!modelName) return false;
+    return !connStatus.models.includes(modelName);
   };
+
+  useEffect(
+    function ensureLocalModelIsValid() {
+      if (!isLocalModelStale(localConnStatus, localModelName)) return;
+
+      // If we reached this point, it means the previously selected local model
+      // is no longer available. We need to clear it from both state and storage.
+      const updates: Record<string, string> = { localModelName: '' };
+      const activeModelIsMissing = settings.modelName === localModelName;
+
+      if (activeModelIsMissing) {
+        updates.modelName = DEFAULT_LLM_MODEL.value;
+        setSettings(prev => ({ ...prev, modelName: DEFAULT_LLM_MODEL.value }));
+      }
+
+      setLocalModelName('');
+      storage.set(updates).catch((error: Error) => {
+        console.error(`Error updating stale local model: ${error.message}`);
+      });
+    },
+    [localConnStatus, localModelName, settings.modelName, storage]
+  );
 
   const handleApiKeyChange =
     (provider: Provider) => (e: ChangeEvent<HTMLInputElement>) => {
@@ -160,14 +167,70 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       setIsFormDirty(true);
     };
 
+  const persistSelectedModel = (
+    modelName: string,
+    selectedLocalModel?: string
+  ) => {
+    const payload: Record<string, string> = {
+      modelName,
+      localModelEndpoint,
+    };
+
+    if (selectedLocalModel) {
+      payload.localModelName = selectedLocalModel;
+    }
+
+    storage.set(payload).catch((error: Error) => {
+      console.error(`Error saving selected model: ${error.message}`);
+    });
+  };
+
+  const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const nextModel = e.target.value;
+
+    if (!nextModel || nextModel.startsWith('__')) {
+      return;
+    }
+
+    const isCloudModel = cloudModelValues.has(nextModel);
+
+    if (isCloudModel) {
+      setSettings(prev => ({ ...prev, modelName: nextModel }));
+      persistSelectedModel(nextModel);
+      return;
+    }
+
+    // Selecting a local model requires local setup first.
+    if (!localModelConfigured) {
+      navigate('/local-model-config');
+      return;
+    }
+
+    setLocalModelName(nextModel);
+    setSettings(prev => ({ ...prev, modelName: nextModel }));
+    persistSelectedModel(nextModel, nextModel);
+
+    if (!ollamaNoticeShown) {
+      toast({
+        status: 'info',
+        title:
+          'Runs on your machine via Ollama. May be slower or less accurate.',
+        variant: 'top-accent',
+      });
+      setOllamaNoticeShown(true);
+      storage.set({ ollamaNoticeShown: 'true' }).catch((error: Error) => {
+        console.error(`Error saving Ollama notice state: ${error.message}`);
+      });
+    }
+  };
+
   const saveSettings = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const storageData: Record<string, string> = {
-      modelName: settings.modelName,
-    };
+    const storageData: Record<string, string> = {};
     PROVIDERS.forEach(p => {
       storageData[PROVIDER_CONFIG[p].storageKey] = settings.apiKeys[p];
     });
+
     storage
       .set(storageData)
       .then(() => {
@@ -188,44 +251,13 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       });
   };
 
-  /** Segmented-control tab switch — saves localModelEnabled immediately. */
-  const handleTabSwitch = (enableLocal: boolean) => {
-    setLocalModelEnabled(enableLocal);
-    storage
-      .set({ localModelEnabled: enableLocal ? 'true' : 'false' })
-      .catch((error: Error) => {
-        console.error(`Error switching provider tab: ${error.message}`);
-      });
-  };
-
-  /** Toggle (shown only when local is NOT yet configured). */
-  const handleLocalModelToggle = () => {
-    const newEnabled = !localModelEnabled;
-    setLocalModelEnabled(newEnabled);
-
-    storage
-      .set({ localModelEnabled: newEnabled ? 'true' : 'false' })
-      .then(() => {
-        if (newEnabled) {
-          if (!localModelConfigured) {
-            navigate('/local-model-config');
-            return;
-          }
-          checkViaBackground(localModelEndpoint)
-            .then(status => setLocalConnectionStatus(status))
-            .catch(() => setLocalConnectionStatus({ type: 'not-running' }));
-        } else {
-          setLocalConnectionStatus(null);
-        }
-      })
-      .catch((error: Error) => {
-        console.error(`Error toggling local model: ${error.message}`);
-      });
-  };
-
   const handleShowKeysClick = () => setShowKeys(!showKeys);
   const inputType = showKeys ? 'text' : 'password';
-  const selectedProvider = getProviderForModel(settings.modelName);
+
+  const activeModelIsCloud = cloudModelValues.has(settings.modelName);
+  const selectedProvider = activeModelIsCloud
+    ? getProviderForModel(settings.modelName)
+    : null;
 
   const showHideButton = (
     <InputRightElement width="4.5rem">
@@ -235,30 +267,29 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     </InputRightElement>
   );
 
-  const localDisplayName = localModelName
-    ? normalizeModelDisplay(localModelName)
-    : 'No model selected';
-
-  const localTabWarning =
-    localConnectionStatus?.type === 'not-running' ||
-    localConnectionStatus?.type === 'no-models';
+  const isLocalModelSelected =
+    !activeModelIsCloud &&
+    !!localModelName &&
+    settings.modelName === localModelName;
 
   const localStatusText = (() => {
-    if (!localConnectionStatus) return 'Checking…';
-    switch (localConnectionStatus.type) {
-      case 'connected':
-      case 'custom-server':
-        return localModelName
-          ? `${normalizeModelDisplay(localModelName)} · Connected`
-          : 'Connected · No model selected';
-      case 'no-models':
-        return 'Connected · No models found';
-      case 'not-running':
-        return 'Not connected';
+    if (!isLocalModelSelected) return '';
+
+    if (
+      localConnStatus?.type === 'connected' ||
+      localConnStatus?.type === 'custom-server'
+    ) {
+      return `${normalizeModelDisplay(localModelName)} · Connected`;
     }
+
+    return '⚠ Ollama not reachable';
   })();
 
-  const cloudModelDisplay = normalizeModelDisplay(settings.modelName);
+  const localModels =
+    localConnStatus?.type === 'connected' ? localConnStatus.models : [];
+
+  const selectedLocalModelStillAvailable =
+    !!localModelName && localModels.includes(localModelName);
 
   return (
     <>
@@ -277,207 +308,157 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
         </Heading>
       )}
 
-      {/* ── Segmented control (both providers configured) ── */}
-      {showSwitcher && (
-        <HStack
-          spacing={0}
-          mb={4}
-          borderRadius="md"
-          overflow="hidden"
-          border="1px solid"
-          borderColor="gray.200"
-        >
-          <Tooltip label={settings.modelName} hasArrow placement="top">
-            <Button
-              flex={1}
-              variant={!localModelEnabled ? 'solid' : 'ghost'}
-              colorScheme={!localModelEnabled ? 'blue' : undefined}
-              borderRadius={0}
-              onClick={() => handleTabSwitch(false)}
-              aria-pressed={!localModelEnabled}
-              aria-label={`Cloud provider: ${settings.modelName}`}
-              size="sm"
-              py={6}
-            >
-              <Box textAlign="center">
-                <Text fontSize="sm" fontWeight="bold" isTruncated maxW="100px">
-                  {cloudModelDisplay}
-                </Text>
-                <Text
-                  fontSize="xs"
-                  color={!localModelEnabled ? 'blue.100' : 'gray.500'}
-                >
-                  ☁ Cloud
-                </Text>
-              </Box>
-            </Button>
-          </Tooltip>
-
-          <Tooltip
-            label={localModelName || 'No model selected'}
-            hasArrow
-            placement="top"
-          >
-            <Button
-              flex={1}
-              variant={localModelEnabled ? 'solid' : 'ghost'}
-              colorScheme={localModelEnabled ? 'blue' : undefined}
-              borderRadius={0}
-              onClick={() => handleTabSwitch(true)}
-              aria-pressed={localModelEnabled}
-              aria-label={`Local provider: ${localDisplayName}`}
-              size="sm"
-              py={6}
-            >
-              <Box textAlign="center">
-                <Text fontSize="sm" fontWeight="bold" isTruncated maxW="100px">
-                  {localDisplayName}
-                  {localTabWarning ? ' ⚠' : ''}
-                </Text>
-                <Text
-                  fontSize="xs"
-                  color={localModelEnabled ? 'blue.100' : 'gray.500'}
-                >
-                  ⊙ Local
-                </Text>
-              </Box>
-            </Button>
-          </Tooltip>
-        </HStack>
-      )}
-
       <form aria-label="Settings form" onSubmit={saveSettings}>
-        {/* ── Cloud fields (visible when cloud tab active or no switcher + local off) ── */}
-        {!localModelEnabled && (
-          <>
-            <FormControl isRequired mt={showSwitcher ? 0 : 6}>
-              <FormLabel>Model Name</FormLabel>
-              <Select
-                id="model-name"
-                name="modelName"
-                value={settings.modelName}
-                onChange={handleModelChange}
-                aria-label="Model Name"
-              >
-                {PROVIDERS.map(provider => (
-                  <optgroup
-                    key={provider}
-                    label={PROVIDER_CONFIG[provider].label}
-                  >
-                    {LLM_MODEL_OPTIONS.filter(m => m.provider === provider).map(
-                      model => (
-                        <option key={model.value} value={model.value}>
-                          {model.name}
-                        </option>
-                      )
-                    )}
-                  </optgroup>
-                ))}
-              </Select>
-            </FormControl>
-
-            {PROVIDERS.map(
-              provider =>
-                selectedProvider === provider && (
-                  <FormControl key={provider} mt={6}>
-                    <FormLabel>
-                      {PROVIDER_CONFIG[provider].label} API Key
-                    </FormLabel>
-                    <InputGroup size="md">
-                      <Input
-                        id={`${provider}-api-key`}
-                        pr="4.5rem"
-                        type={inputType}
-                        value={settings.apiKeys[provider]}
-                        onChange={handleApiKeyChange(provider)}
-                        aria-label={`${PROVIDER_CONFIG[provider].label} API Key`}
-                      />
-                      {showHideButton}
-                    </InputGroup>
-                    <FormHelperText>
-                      {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
-                      <Link href={PROVIDER_CONFIG[provider].helpUrl} isExternal>
-                        {PROVIDER_CONFIG[provider].helpLabel}
-                        <ExternalLinkIcon mx="2px" mb="3px" />
-                      </Link>
-                    </FormHelperText>
-                  </FormControl>
-                )
-            )}
-
-            {!showSwitcher && (
-              <Button
-                type="submit"
-                colorScheme="green"
-                isDisabled={!isFormDirty}
-                mt={6}
-                w="100%"
-              >
-                Save
-              </Button>
-            )}
-          </>
-        )}
-
-        {/* Save button when switcher is shown and cloud tab is active */}
-        {showSwitcher && !localModelEnabled && (
-          <Button
-            type="submit"
-            colorScheme="green"
-            isDisabled={!isFormDirty}
-            mt={6}
-            w="100%"
+        <FormControl isRequired mt={6}>
+          <FormLabel>Model Name</FormLabel>
+          <Select
+            id="model-name"
+            name="modelName"
+            value={settings.modelName}
+            onChange={handleModelChange}
+            aria-label="Model Name"
           >
-            Save
-          </Button>
-        )}
+            {LLM_MODEL_OPTIONS.map(model => (
+              <option key={model.value} value={model.value}>
+                {model.name}
+                {model.value === DEFAULT_LLM_MODEL.value
+                  ? ' (Recommended)'
+                  : ''}
+              </option>
+            ))}
 
-        {/* ── Local model status (visible when local tab active or toggle ON) ── */}
-        {localModelEnabled && (
-          <Box mt={showSwitcher ? 0 : 6}>
-            {localConnectionStatus?.type === 'not-running' && (
-              <Text fontSize="sm" color="red.500" mb={2}>
-                ⚠ Can&apos;t reach Ollama. Requests will fail until Ollama is
-                running.
-              </Text>
+            <option value="__divider" disabled>
+              ------------
+            </option>
+
+            {localConnStatus === null && (
+              <option value="__ollama-loading" disabled>
+                Checking Ollama…
+              </option>
             )}
-            <HStack justify="space-between" align="center">
-              <Text fontSize="sm">{localStatusText}</Text>
-              <Link
-                fontSize="sm"
-                color="blue.500"
-                cursor="pointer"
-                onClick={() => navigate('/local-model-config')}
-                aria-label="Configure local model"
-              >
-                Configure
-              </Link>
-            </HStack>
-          </Box>
+
+            {localConnStatus?.type === 'not-running' && (
+              <>
+                <option value="__ollama-down" disabled>
+                  Ollama not running
+                </option>
+                <option value="__ollama-run" disabled>
+                  Run: ollama serve
+                </option>
+              </>
+            )}
+
+            {localConnStatus?.type === 'no-models' && (
+              <>
+                <option value="__ollama-empty" disabled>
+                  No models installed
+                </option>
+                <option value="__ollama-pull" disabled>
+                  Run: ollama pull llama3.2
+                </option>
+              </>
+            )}
+
+            {localConnStatus?.type === 'connected' && (
+              <>
+                <option value="__ollama-label" disabled>
+                  Ollama
+                </option>
+                {localConnStatus.models.map(model => (
+                  <option key={model} value={model}>
+                    {normalizeModelDisplay(model)}
+                  </option>
+                ))}
+              </>
+            )}
+
+            {isLocalModelSelected && !selectedLocalModelStillAvailable && (
+              <option value={settings.modelName}>
+                {normalizeModelDisplay(settings.modelName)} (Unavailable)
+              </option>
+            )}
+          </Select>
+        </FormControl>
+
+        {(localConnStatus?.type === 'not-running' ||
+          localConnStatus?.type === 'no-models') && (
+          <HStack justify="space-between" align="center" mt={2}>
+            <Text fontSize="sm" color="gray.600">
+              {localConnStatus.type === 'not-running'
+                ? 'Ollama is unavailable.'
+                : 'Install at least one Ollama model to select it.'}
+            </Text>
+            <Link
+              fontSize="sm"
+              color="blue.500"
+              cursor="pointer"
+              onClick={() => navigate('/local-model-config')}
+              aria-label="Configure local model"
+            >
+              Configure
+            </Link>
+          </HStack>
         )}
 
-        {/* ── Toggle (only when local has NOT been configured yet) ── */}
-        {!showSwitcher && (
-          <>
-            <Divider mt={6} mb={4} />
-            <FormControl>
-              <HStack justify="space-between" align="center">
-                <FormLabel mb={0} htmlFor="local-model-toggle">
-                  Use local model (Ollama)
-                </FormLabel>
-                <Switch
-                  id="local-model-toggle"
-                  isChecked={localModelEnabled}
-                  onChange={handleLocalModelToggle}
-                  aria-label="Use local model (Ollama)"
-                />
-              </HStack>
-            </FormControl>
-          </>
+        {isLocalModelSelected && (
+          <HStack justify="space-between" align="center" mt={4}>
+            <Text fontSize="sm">{localStatusText}</Text>
+            <Link
+              fontSize="sm"
+              color="blue.500"
+              cursor="pointer"
+              onClick={() => navigate('/local-model-config')}
+              aria-label="Configure local model"
+            >
+              Configure
+            </Link>
+          </HStack>
         )}
+
+        {activeModelIsCloud &&
+          PROVIDERS.map(
+            provider =>
+              selectedProvider === provider && (
+                <FormControl key={provider} mt={6}>
+                  <FormLabel>
+                    {PROVIDER_CONFIG[provider].label} API Key
+                  </FormLabel>
+                  <InputGroup size="md">
+                    <Input
+                      id={`${provider}-api-key`}
+                      pr="4.5rem"
+                      type={inputType}
+                      value={settings.apiKeys[provider]}
+                      onChange={handleApiKeyChange(provider)}
+                      aria-label={`${PROVIDER_CONFIG[provider].label} API Key`}
+                    />
+                    {showHideButton}
+                  </InputGroup>
+                  <FormHelperText>
+                    {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
+                    <Link href={PROVIDER_CONFIG[provider].helpUrl} isExternal>
+                      {PROVIDER_CONFIG[provider].helpLabel}
+                      <ExternalLinkIcon mx="2px" mb="3px" />
+                    </Link>
+                  </FormHelperText>
+                </FormControl>
+              )
+          )}
+
+        <Button
+          type="submit"
+          colorScheme="green"
+          isDisabled={!isFormDirty}
+          mt={6}
+          w="100%"
+        >
+          Save
+        </Button>
       </form>
     </>
   );
 };
 
 export default Settings;
+
+// FIXME: Component doing too much

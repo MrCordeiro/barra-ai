@@ -1,47 +1,51 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-var-requires */
+function makePort(onMessageCallback?: (msg: unknown) => void) {
+  const listeners: ((msg: unknown) => void)[] = [];
+  const posted: unknown[] = [];
+
+  const port = {
+    name: 'inference',
+    onMessage: {
+      addListener: jest.fn((fn: (msg: unknown) => void) => {
+        listeners.push(fn);
+        if (onMessageCallback) onMessageCallback(fn);
+      }),
+    },
+    postMessage: jest.fn((msg: unknown) => {
+      posted.push(msg);
+    }),
+    disconnect: jest.fn(),
+    posted,
+    trigger: (msg: unknown) => listeners.forEach(fn => fn(msg)),
+  };
+  return port;
+}
+
+type InferenceModule = typeof import('../inference');
+
+interface InferenceStorageValues {
+  modelName: string;
+  localModelName: string;
+  localModelEndpoint: string;
+}
+
+async function loadInferenceModule(options: {
+  storageValues: InferenceStorageValues;
+  fetchAIResponseMock?: jest.Mock;
+}): Promise<InferenceModule> {
+  jest.doMock('../../content/ai', () => ({
+    fetchAIResponse: options.fetchAIResponseMock ?? jest.fn(),
+  }));
+  jest.doMock('../../storages', () => ({
+    chromeStorage: {
+      get: jest.fn().mockResolvedValue(options.storageValues),
+      addChangeListener: jest.fn(),
+    },
+  }));
+  return import('../inference');
+}
 
 describe('handleInferencePort', () => {
   const mockFetchAIResponse = jest.fn();
-
-  function makePort(onMessageCallback?: (msg: unknown) => void) {
-    const listeners: ((msg: unknown) => void)[] = [];
-    const posted: unknown[] = [];
-
-    const port = {
-      name: 'inference',
-      onMessage: {
-        addListener: jest.fn((fn: (msg: unknown) => void) => {
-          listeners.push(fn);
-          if (onMessageCallback) onMessageCallback(fn);
-        }),
-      },
-      postMessage: jest.fn((msg: unknown) => {
-        posted.push(msg);
-      }),
-      disconnect: jest.fn(),
-      posted,
-      trigger: (msg: unknown) => listeners.forEach(fn => fn(msg)),
-    };
-    return port;
-  }
-
-  function loadModule() {
-    jest.doMock('../../content/ai', () => ({
-      fetchAIResponse: mockFetchAIResponse,
-    }));
-    jest.doMock('../../storages', () => ({
-      chromeStorage: {
-        get: jest.fn().mockResolvedValue({
-          localModelEnabled: 'false',
-          localModelEndpoint: '',
-        }),
-      },
-    }));
-    return require('../inference') as {
-      handleInferencePort: (port: chrome.runtime.Port) => void;
-    };
-  }
 
   beforeEach(() => {
     jest.resetModules();
@@ -61,7 +65,14 @@ describe('handleInferencePort', () => {
       }
     );
 
-    const { handleInferencePort } = loadModule();
+    const { handleInferencePort } = await loadInferenceModule({
+      fetchAIResponseMock: mockFetchAIResponse,
+      storageValues: {
+        modelName: 'gpt-4o-mini',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: '',
+      },
+    });
     const port = makePort();
     handleInferencePort(port as unknown as chrome.runtime.Port);
     port.trigger({ type: 'start', prompt: 'test prompt' });
@@ -76,7 +87,14 @@ describe('handleInferencePort', () => {
   test('posts done message on successful completion', async () => {
     mockFetchAIResponse.mockResolvedValue('response text');
 
-    const { handleInferencePort } = loadModule();
+    const { handleInferencePort } = await loadInferenceModule({
+      fetchAIResponseMock: mockFetchAIResponse,
+      storageValues: {
+        modelName: 'gpt-4o-mini',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: '',
+      },
+    });
     const port = makePort();
     handleInferencePort(port as unknown as chrome.runtime.Port);
     port.trigger({ type: 'start', prompt: 'test' });
@@ -92,7 +110,14 @@ describe('handleInferencePort', () => {
   test('posts error message when fetchAIResponse throws', async () => {
     mockFetchAIResponse.mockRejectedValue(new Error('API error'));
 
-    const { handleInferencePort } = loadModule();
+    const { handleInferencePort } = await loadInferenceModule({
+      fetchAIResponseMock: mockFetchAIResponse,
+      storageValues: {
+        modelName: 'gpt-4o-mini',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: '',
+      },
+    });
     const port = makePort();
     handleInferencePort(port as unknown as chrome.runtime.Port);
     port.trigger({ type: 'start', prompt: 'test' });
@@ -110,7 +135,14 @@ describe('handleInferencePort', () => {
       new Error('No local model selected. Please open settings.')
     );
 
-    const { handleInferencePort } = loadModule();
+    const { handleInferencePort } = await loadInferenceModule({
+      fetchAIResponseMock: mockFetchAIResponse,
+      storageValues: {
+        modelName: 'gpt-4o-mini',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: '',
+      },
+    });
     const port = makePort();
     handleInferencePort(port as unknown as chrome.runtime.Port);
     port.trigger({ type: 'start', prompt: 'test' });
@@ -125,7 +157,14 @@ describe('handleInferencePort', () => {
   test('categorizes network errors as unreachable', async () => {
     mockFetchAIResponse.mockRejectedValue(new Error('Failed to fetch'));
 
-    const { handleInferencePort } = loadModule();
+    const { handleInferencePort } = await loadInferenceModule({
+      fetchAIResponseMock: mockFetchAIResponse,
+      storageValues: {
+        modelName: 'gpt-4o-mini',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: '',
+      },
+    });
     const port = makePort();
     handleInferencePort(port as unknown as chrome.runtime.Port);
     port.trigger({ type: 'start', prompt: 'test' });
@@ -138,7 +177,14 @@ describe('handleInferencePort', () => {
   });
 
   test('ignores messages that are not type "start"', async () => {
-    const { handleInferencePort } = loadModule();
+    const { handleInferencePort } = await loadInferenceModule({
+      fetchAIResponseMock: mockFetchAIResponse,
+      storageValues: {
+        modelName: 'gpt-4o-mini',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: '',
+      },
+    });
     const port = makePort();
     handleInferencePort(port as unknown as chrome.runtime.Port);
     port.trigger({ type: 'other', prompt: 'ignored' });
@@ -152,7 +198,14 @@ describe('handleInferencePort', () => {
   test('calls fetchAIResponse with the prompt from the message', async () => {
     mockFetchAIResponse.mockResolvedValue('ok');
 
-    const { handleInferencePort } = loadModule();
+    const { handleInferencePort } = await loadInferenceModule({
+      fetchAIResponseMock: mockFetchAIResponse,
+      storageValues: {
+        modelName: 'gpt-4o-mini',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: '',
+      },
+    });
     const port = makePort();
     handleInferencePort(port as unknown as chrome.runtime.Port);
     port.trigger({ type: 'start', prompt: 'write a tweet' });
@@ -167,72 +220,80 @@ describe('handleInferencePort', () => {
 });
 
 describe('updateCorsRule', () => {
-  function loadModule(localModelEnabled: string, localModelEndpoint: string) {
-    jest.doMock('../../storages', () => ({
-      chromeStorage: {
-        get: jest.fn().mockResolvedValue({
-          localModelEnabled,
-          localModelEndpoint,
-        }),
-        addChangeListener: jest.fn(),
+  function expectedCorsRule(origin: string) {
+    return {
+      id: 1,
+      priority: 1,
+      action: {
+        type: 'modifyHeaders',
+        requestHeaders: [
+          {
+            header: 'Origin',
+            operation: 'set',
+            value: origin,
+          },
+        ],
       },
-    }));
-    jest.doMock('../../content/ai', () => ({
-      fetchAIResponse: jest.fn(),
-    }));
-    return require('../inference') as {
-      updateCorsRule: () => Promise<void>;
+      condition: {
+        urlFilter: `${origin}/*`,
+        resourceTypes: ['xmlhttprequest'],
+      },
     };
+  }
+
+  function expectCorsRuleApplied(origin: string) {
+    expect(
+      chrome.declarativeNetRequest.updateDynamicRules
+    ).toHaveBeenCalledWith({
+      removeRuleIds: [1],
+      addRules: [expectedCorsRule(origin)],
+    });
   }
 
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
-    (
-      chrome.declarativeNetRequest.updateDynamicRules as jest.Mock
-    ).mockResolvedValue(undefined);
+    const updateDynamicRulesMock = chrome.declarativeNetRequest
+      .updateDynamicRules as jest.MockedFunction<
+      typeof chrome.declarativeNetRequest.updateDynamicRules
+    >;
+    updateDynamicRulesMock.mockResolvedValue(undefined);
   });
 
-  test('adds a declarativeNetRequest rule when local model is enabled', async () => {
-    const { updateCorsRule } = loadModule('true', 'http://localhost:11434');
+  test('adds a declarativeNetRequest rule when local model is selected', async () => {
+    const { updateCorsRule } = await loadInferenceModule({
+      storageValues: {
+        modelName: 'llama3.2:latest',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: 'http://localhost:11434',
+      },
+    });
     await updateCorsRule();
 
-    expect(
-      chrome.declarativeNetRequest.updateDynamicRules
-    ).toHaveBeenCalledWith(
-      expect.objectContaining({
-        addRules: expect.arrayContaining([expect.objectContaining({ id: 1 })]),
-        removeRuleIds: [1],
-      })
-    );
+    expectCorsRuleApplied('http://localhost:11434');
   });
 
   test('normalizes endpoint path to origin in rule values', async () => {
-    const { updateCorsRule } = loadModule('true', 'http://localhost:11434/v1/');
+    const { updateCorsRule } = await loadInferenceModule({
+      storageValues: {
+        modelName: 'llama3.2:latest',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: 'http://localhost:11434/v1/',
+      },
+    });
     await updateCorsRule();
 
-    expect(
-      chrome.declarativeNetRequest.updateDynamicRules
-    ).toHaveBeenCalledWith(
-      expect.objectContaining({
-        addRules: expect.arrayContaining([
-          expect.objectContaining({
-            action: expect.objectContaining({
-              requestHeaders: expect.arrayContaining([
-                expect.objectContaining({ value: 'http://localhost:11434' }),
-              ]),
-            }),
-            condition: expect.objectContaining({
-              urlFilter: 'http://localhost:11434/*',
-            }),
-          }),
-        ]),
-      })
-    );
+    expectCorsRuleApplied('http://localhost:11434');
   });
 
-  test('removes the rule when local model is disabled', async () => {
-    const { updateCorsRule } = loadModule('false', 'http://localhost:11434');
+  test('removes the rule when local model is not selected', async () => {
+    const { updateCorsRule } = await loadInferenceModule({
+      storageValues: {
+        modelName: 'gpt-4o-mini',
+        localModelName: 'llama3.2:latest',
+        localModelEndpoint: 'http://localhost:11434',
+      },
+    });
     await updateCorsRule();
 
     expect(

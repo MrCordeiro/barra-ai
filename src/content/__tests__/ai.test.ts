@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-var-requires */
-
 describe('Environment Variable USE_MOCK', () => {
   const testCases = [
     { envValue: '1', expected: true },
@@ -14,11 +10,11 @@ describe('Environment Variable USE_MOCK', () => {
   ];
 
   testCases.forEach(({ envValue, expected }) => {
-    test(`should set USE_MOCK to ${expected} for env value ${envValue}`, () => {
+    test(`should set USE_MOCK to ${expected} for env value ${envValue}`, async () => {
       process.env.USE_MOCK = envValue as string;
 
       jest.resetModules();
-      const { USE_MOCK } = require('../ai');
+      const { USE_MOCK } = await import('../ai');
       expect(USE_MOCK).toBe(expected);
     });
   });
@@ -39,7 +35,7 @@ describe('fetchAIResponse with USE_MOCK=true', () => {
   block and hello to endless possibilities! 📝💡 \
   #AI #ContentCreation #Innovation";
 
-    const { fetchAIResponse } = require('../ai');
+    const { fetchAIResponse } = await import('../ai');
     const response = await fetchAIResponse(prompt);
 
     expect(response).toBe(expectedResponse);
@@ -51,21 +47,25 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
   const mockFetchAnthropicResponse = jest.fn();
   const mockFetchOllamaResponse = jest.fn();
 
-  function loadModule(
+  async function loadModule(
     modelName: string,
     localSettings?: {
-      localModelEnabled?: string;
       localModelEndpoint?: string;
       localModelName?: string;
+      openaiApiKey?: string;
+      anthropicApiKey?: string;
+      geminiApiKey?: string;
     }
-  ) {
+  ): Promise<typeof import('../ai')> {
     jest.doMock('../../storages', () => ({
       chromeStorage: {
         get: jest.fn().mockResolvedValue({
           modelName,
-          localModelEnabled: localSettings?.localModelEnabled ?? 'false',
           localModelEndpoint: localSettings?.localModelEndpoint ?? '',
           localModelName: localSettings?.localModelName ?? '',
+          openaiApiKey: localSettings?.openaiApiKey ?? '',
+          anthropicApiKey: localSettings?.anthropicApiKey ?? '',
+          geminiApiKey: localSettings?.geminiApiKey ?? '',
         }),
       },
     }));
@@ -79,12 +79,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
       fetchOllamaResponse: mockFetchOllamaResponse,
       DEFAULT_OLLAMA_ENDPOINT: 'http://localhost:11434',
     }));
-    return require('../ai') as {
-      fetchAIResponse: (
-        p: string,
-        onChunk?: (chunk: string) => void
-      ) => Promise<string>;
-    };
+    return import('../ai');
   }
 
   beforeEach(() => {
@@ -98,7 +93,9 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
 
   test('routes to OpenAI for a GPT model', async () => {
     mockFetchGptResponse.mockResolvedValue('gpt response');
-    const { fetchAIResponse } = loadModule('gpt-4o-mini');
+    const { fetchAIResponse } = await loadModule('gpt-4o-mini', {
+      openaiApiKey: 'sk-test',
+    });
     const onChunk = jest.fn();
 
     await fetchAIResponse('test prompt', onChunk);
@@ -115,7 +112,9 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
 
   test('routes to Anthropic for a Claude model', async () => {
     mockFetchAnthropicResponse.mockResolvedValue('claude response');
-    const { fetchAIResponse } = loadModule('claude-sonnet-4-6');
+    const { fetchAIResponse } = await loadModule('claude-sonnet-4-6', {
+      anthropicApiKey: 'ak-test',
+    });
     const onChunk = jest.fn();
 
     await fetchAIResponse('test prompt', onChunk);
@@ -132,7 +131,9 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
 
   test('falls back to OpenAI for an unknown model', async () => {
     mockFetchGptResponse.mockResolvedValue('gpt response');
-    const { fetchAIResponse } = loadModule('unknown-model');
+    const { fetchAIResponse } = await loadModule('unknown-model', {
+      openaiApiKey: 'sk-test',
+    });
     const onChunk = jest.fn();
 
     await fetchAIResponse('test prompt', onChunk);
@@ -147,10 +148,9 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     expect(mockFetchOllamaResponse).not.toHaveBeenCalled();
   });
 
-  test('routes to Ollama when localModelEnabled is true', async () => {
+  test('routes to Ollama when selected model matches local model', async () => {
     mockFetchOllamaResponse.mockResolvedValue('ollama response');
-    const { fetchAIResponse } = loadModule('gpt-4o-mini', {
-      localModelEnabled: 'true',
+    const { fetchAIResponse } = await loadModule('llama3.2:latest', {
       localModelEndpoint: 'http://localhost:11434',
       localModelName: 'llama3.2:latest',
     });
@@ -170,8 +170,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
 
   test('uses default Ollama endpoint when none is stored', async () => {
     mockFetchOllamaResponse.mockResolvedValue('ollama response');
-    const { fetchAIResponse } = loadModule('gpt-4o', {
-      localModelEnabled: 'true',
+    const { fetchAIResponse } = await loadModule('mistral:latest', {
       localModelEndpoint: '',
       localModelName: 'mistral:latest',
     });
@@ -186,16 +185,36 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     );
   });
 
-  test('throws when localModelEnabled is true but no model is selected', async () => {
-    const { fetchAIResponse } = loadModule('gpt-4o', {
-      localModelEnabled: 'true',
+  test('falls back to cloud route when local model is not selected', async () => {
+    mockFetchGptResponse.mockResolvedValue('gpt response');
+    const { fetchAIResponse } = await loadModule('gpt-4o', {
+      openaiApiKey: 'sk-test',
       localModelEndpoint: 'http://localhost:11434',
-      localModelName: '',
+      localModelName: 'llama3.2:latest',
     });
 
-    await expect(fetchAIResponse('test prompt')).rejects.toThrow(
-      'No local model selected'
-    );
+    await fetchAIResponse('test prompt');
+
+    expect(mockFetchGptResponse).toHaveBeenCalled();
     expect(mockFetchOllamaResponse).not.toHaveBeenCalled();
+  });
+
+  test('falls back to Ollama when cloud provider key is missing', async () => {
+    mockFetchOllamaResponse.mockResolvedValue('ollama response');
+    const { fetchAIResponse } = await loadModule('gpt-4o', {
+      openaiApiKey: '',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'mistral:latest',
+    });
+
+    await fetchAIResponse('test prompt');
+
+    expect(mockFetchOllamaResponse).toHaveBeenCalledWith(
+      'test prompt',
+      'mistral:latest',
+      'http://localhost:11434',
+      undefined
+    );
+    expect(mockFetchGptResponse).not.toHaveBeenCalled();
   });
 });

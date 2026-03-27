@@ -13,6 +13,8 @@ interface OllamaStreamChunk {
   choices: { delta: { content?: string }; index: number }[];
 }
 
+// TODO: Should this be an Enum
+
 export type OllamaConnectionStatus =
   | { type: 'connected'; models: string[] }
   | { type: 'not-running' }
@@ -41,7 +43,7 @@ function makeTimeoutSignal(ms: number): AbortSignal | undefined {
  *
  * First tries GET /api/tags (Ollama-native). If that fails, falls back to a
  * lightweight POST /v1/chat/completions probe to detect non-Ollama
- * OpenAI-compatible servers (§8.2).
+ * OpenAI-compatible servers
  */
 export async function checkOllamaConnection(
   endpoint: string
@@ -62,7 +64,7 @@ export async function checkOllamaConnection(
     // /api/tags failed — try the OpenAI-compatible probe below
   }
 
-  // §8.2 fallback: probe /v1/chat/completions
+  // fallback: probe /v1/chat/completions
   try {
     const response = await fetch(`${endpoint}/v1/chat/completions`, {
       method: 'POST',

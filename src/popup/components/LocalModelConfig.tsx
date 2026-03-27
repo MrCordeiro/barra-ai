@@ -4,6 +4,7 @@ import {
   useRef,
   type ChangeEvent,
   type FocusEvent,
+  useCallback,
 } from 'react';
 import {
   Alert,
@@ -51,70 +52,74 @@ const LocalModelConfig = ({ storage }: Props) => {
   const [isChecking, setIsChecking] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load saved config and run initial connection check on mount
-  useEffect(() => {
-    storage
-      .get(['localModelEndpoint', 'localModelName'])
-      .then(result => {
-        const savedEndpoint =
-          normalizeLocalEndpoint(result.localModelEndpoint ?? '') ??
-          DEFAULT_OLLAMA_ENDPOINT;
-        const savedModel = result.localModelName || '';
-        setEndpoint(savedEndpoint);
-        setSelectedModel(savedModel);
-        void runConnectionCheck(savedEndpoint, savedModel);
-      })
-      .catch((error: Error) => {
-        console.error(`Error loading local model config: ${error.message}`);
-        void runConnectionCheck(DEFAULT_OLLAMA_ENDPOINT);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const runConnectionCheck = useCallback(
+    async (url: string, currentSelectedModel = selectedModel) => {
+      setIsChecking(true);
+      try {
+        const status: OllamaConnectionStatus = await chrome.runtime.sendMessage(
+          {
+            type: 'ollama:check',
+            endpoint: url,
+          }
+        );
+        setConnectionStatus(status);
+        let resolvedSelectedModel = currentSelectedModel;
 
-  async function runConnectionCheck(
-    url: string,
-    currentSelectedModel = selectedModel
-  ) {
-    setIsChecking(true);
-    try {
-      const status: OllamaConnectionStatus = await chrome.runtime.sendMessage({
-        type: 'ollama:check',
-        endpoint: url,
-      });
-      setConnectionStatus(status);
-      let resolvedSelectedModel = currentSelectedModel;
-      // If only one model available, auto-select it
-      if (
-        status.type === 'connected' &&
-        status.models.length === 1 &&
-        !resolvedSelectedModel
-      ) {
-        const model = status.models[0];
-        resolvedSelectedModel = model;
-        setSelectedModel(model);
-        await storage.set({ localModelName: model });
+        // If only one model available, auto-select it
+        if (
+          status.type === 'connected' &&
+          status.models.length === 1 &&
+          !resolvedSelectedModel
+        ) {
+          const model = status.models[0];
+          resolvedSelectedModel = model;
+          setSelectedModel(model);
+          await storage.set({ localModelName: model });
+        }
+        // If previously selected model is no longer in the list, clear it
+        if (
+          status.type === 'connected' &&
+          resolvedSelectedModel &&
+          !status.models.includes(resolvedSelectedModel)
+        ) {
+          setSelectedModel('');
+          await storage.set({ localModelName: '' });
+        }
+      } catch {
+        setConnectionStatus({ type: 'not-running' });
+      } finally {
+        setIsChecking(false);
       }
-      // If previously selected model is no longer in the list, clear it (§6.3)
-      if (
-        status.type === 'connected' &&
-        resolvedSelectedModel &&
-        !status.models.includes(resolvedSelectedModel)
-      ) {
-        setSelectedModel('');
-        await storage.set({ localModelName: '' });
-      }
-    } catch {
-      setConnectionStatus({ type: 'not-running' });
-    } finally {
-      setIsChecking(false);
-    }
-  }
+    },
+    [selectedModel, storage]
+  );
+
+  useEffect(
+    function loadAndCheckConfig() {
+      storage
+        .get(['localModelEndpoint', 'localModelName'])
+        .then(result => {
+          const savedEndpoint =
+            normalizeLocalEndpoint(result.localModelEndpoint ?? '') ??
+            DEFAULT_OLLAMA_ENDPOINT;
+          const savedModel = result.localModelName || '';
+          setEndpoint(savedEndpoint);
+          setSelectedModel(savedModel);
+          void runConnectionCheck(savedEndpoint, savedModel);
+        })
+        .catch((error: Error) => {
+          console.error(`Error loading local model config: ${error.message}`);
+          void runConnectionCheck(DEFAULT_OLLAMA_ENDPOINT);
+        });
+    },
+    [runConnectionCheck, storage]
+  );
 
   function handleEndpointChange(e: ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
     setEndpoint(value);
     setEndpointError('');
-    // Debounced connection check (§4.3)
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       const normalized = normalizeLocalEndpoint(value);
@@ -302,7 +307,6 @@ function ConnectionStatusDisplay({
     );
   }
 
-  // not-running
   return (
     <Box>
       <Text fontSize="sm" color="red.600" aria-live="polite">

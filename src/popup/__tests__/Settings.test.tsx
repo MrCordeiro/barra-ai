@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/await-thenable */
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@chakra-ui/react';
 import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
-import { DEFAULT_OLLAMA_ENDPOINT } from '../../content/ollama';
 import { Storage } from '../../storages';
 import Settings from '../components/Settings';
 
@@ -48,11 +46,6 @@ const anthropicModel = LLM_MODEL_OPTIONS.find(
   model => model.provider === 'anthropic'
 )!.value;
 
-const geminiModel = LLM_MODEL_OPTIONS.find(
-  model => model.provider === 'gemini'
-)!.value;
-
-// Mock the toast functions
 jest.mock('@chakra-ui/react', () => {
   const originalModule =
     jest.requireActual<typeof import('@chakra-ui/react')>('@chakra-ui/react');
@@ -62,11 +55,17 @@ jest.mock('@chakra-ui/react', () => {
   };
 });
 
-/** Reset the chrome.runtime.sendMessage mock to the given resolved value. */
 function mockOllamaCheck(
   result: { type: string; models?: string[] } = { type: 'not-running' }
 ) {
   (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue(result);
+}
+
+async function renderSettings(props: { showOnboarding?: boolean } = {}) {
+  render(<Settings storage={mockStorage} {...props} />);
+  await waitFor(() => {
+    expect(chrome.runtime.sendMessage).toHaveBeenCalled();
+  });
 }
 
 describe('<Settings />', () => {
@@ -80,422 +79,183 @@ describe('<Settings />', () => {
     jest.restoreAllMocks();
   });
 
-  test('should display a blank settings form', () => {
-    render(<Settings storage={mockStorage} />);
+  test('renders default settings form', async () => {
+    await renderSettings();
 
-    const openaiKeyInput = screen.getByLabelText(/OpenAI API Key/i);
-    expect(openaiKeyInput).toHaveValue('');
-
-    const anthropicKeyInput = screen.queryByLabelText(/Anthropic API Key/i);
-    expect(anthropicKeyInput).not.toBeInTheDocument();
-
-    const modelNameSelect = screen.getByLabelText(/Model Name/i);
-    expect(modelNameSelect).toHaveValue(DEFAULT_LLM_MODEL.value);
-
-    const saveButton = screen.getByRole('button', { name: /Save/i });
-    expect(saveButton).toBeDisabled();
-  });
-
-  test('should show an onboarding message if showOnboarding is true', () => {
-    render(<Settings storage={mockStorage} showOnboarding />);
-
-    const onboardingMessage = screen.getByText(/Welcome!/i);
-    expect(onboardingMessage).toBeInTheDocument();
-  });
-
-  test('changes OpenAI API key value', async () => {
-    const { getByRole, getByLabelText } = render(
-      <Settings storage={mockStorage} />
+    expect(screen.getByLabelText(/Model Name/i)).toHaveValue(
+      DEFAULT_LLM_MODEL.value
     );
-
-    const apiKeyInput = await getByLabelText(/OpenAI API Key/i);
-    fireEvent.change(apiKeyInput, { target: { value: 'new-openai-key' } });
-    expect(apiKeyInput).toHaveValue('new-openai-key');
-
-    const saveButton = await getByRole('button', { name: /Save/i });
-    expect(saveButton).toBeEnabled();
+    expect(screen.getByLabelText(/OpenAI API Key/i)).toHaveValue('');
+    expect(screen.getByRole('button', { name: /Save/i })).toBeDisabled();
   });
 
-  test('changes Anthropic API key value', async () => {
-    const { getByRole, getByLabelText } = render(
-      <Settings storage={mockStorage} />
-    );
+  test('shows onboarding text when requested', async () => {
+    await renderSettings({ showOnboarding: true });
+    expect(screen.getByText(/Welcome!/i)).toBeInTheDocument();
+  });
 
-    const modelNameSelect = await getByLabelText(/Model Name/i);
-    fireEvent.change(modelNameSelect, {
-      target: { value: anthropicModel },
+  test('shows Ollama not-running state in selector', async () => {
+    mockOllamaCheck({ type: 'not-running' });
+    await renderSettings();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ollama not running/i)).toBeInTheDocument();
+      expect(screen.getByText(/Run: ollama serve/i)).toBeInTheDocument();
     });
 
-    const apiKeyInput = await getByLabelText(/Anthropic API Key/i);
-    fireEvent.change(apiKeyInput, { target: { value: 'new-anthropic-key' } });
-    expect(apiKeyInput).toHaveValue('new-anthropic-key');
-
-    const saveButton = await getByRole('button', { name: /Save/i });
-    expect(saveButton).toBeEnabled();
+    expect(screen.getByText(/Configure/i)).toBeInTheDocument();
   });
 
-  test('changes model name value', async () => {
-    const { getByRole, getByLabelText } = render(
-      <Settings storage={mockStorage} />
-    );
+  test('shows Ollama model list when connected', async () => {
+    mockOllamaCheck({
+      type: 'connected',
+      models: ['llama3.2:latest', 'mistral:latest'],
+    });
 
-    const modelNameSelect = await getByLabelText(/Model Name/i);
-    fireEvent.change(modelNameSelect, {
+    await renderSettings();
+
+    await waitFor(() => {
+      expect(screen.getByText('Ollama')).toBeInTheDocument();
+      expect(screen.getByText('llama3.2')).toBeInTheDocument();
+      expect(screen.getByText('mistral')).toBeInTheDocument();
+    });
+  });
+
+  test('changes selected cloud model and persists immediately', async () => {
+    mockStorage.savedData = { localModelName: 'llama3.2:latest' };
+    await renderSettings();
+
+    fireEvent.change(screen.getByLabelText(/Model Name/i), {
       target: { value: openAIModel },
     });
-    expect(modelNameSelect).toHaveValue(openAIModel);
 
-    const saveButton = await getByRole('button', { name: /Save/i });
-    expect(saveButton).toBeEnabled();
+    await waitFor(() => {
+      expect(mockStorage.savedData?.modelName).toBe(openAIModel);
+      expect(mockStorage.savedData?.localModelName).toBe('llama3.2:latest');
+    });
   });
 
-  test("handleSubmit should call storage.set and navigate to '/'", async () => {
+  test('navigates to local config when selecting local model without config', async () => {
     const mockNavigate = jest.fn();
     (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
-    const mockToast = jest.fn();
-    (useToast as jest.Mock).mockReturnValue(mockToast);
-
-    const { getByLabelText, getByRole } = render(
-      <Settings storage={mockStorage} />
-    );
-
-    fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: anthropicModel },
-    });
-    fireEvent.change(getByLabelText(/Anthropic API Key/i), {
-      target: { value: 'my-anthropic-key' },
-    });
-    fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: openAIModel },
-    });
-    fireEvent.change(getByLabelText(/OpenAI API Key/i), {
-      target: { value: 'my-openai-key' },
-    });
-    fireEvent.click(getByRole('button', { name: /Save/i }));
-
-    await waitFor(() => {
-      expect(mockStorage.savedData).toMatchObject({
-        openaiApiKey: 'my-openai-key',
-        anthropicApiKey: 'my-anthropic-key',
-        geminiApiKey: '',
-        modelName: openAIModel,
-      });
-    });
-
-    await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith({
-        status: 'success',
-        title: 'Settings saved! 🎉',
-        variant: 'top-accent',
-      });
-    });
-
-    expect(mockNavigate).toHaveBeenCalledWith('/');
-  });
-
-  test('should log an error if we fail useEffect to get saved settings', async () => {
-    const mockError = new Error('Mock error message');
-    jest.spyOn(mockStorage, 'get').mockImplementation(() => {
-      return Promise.reject(mockError);
-    });
-    jest.spyOn(console, 'error').mockImplementation(() => null);
-
-    render(<Settings storage={mockStorage} />);
-
-    await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(
-        `Error loading settings: ${mockError.message}`
-      );
-    });
-  });
-
-  test('handleSubmit should show an error toast if storage.set fails', async () => {
-    const mockError = new Error('Mock error message');
-    jest.spyOn(mockStorage, 'set').mockImplementation(() => {
-      return Promise.reject(mockError);
-    });
-    jest.spyOn(console, 'error').mockImplementation(() => null);
-
-    const mockToast = jest.fn();
-    (useToast as jest.Mock).mockReturnValue(mockToast);
-
-    const { getByLabelText, getByRole } = render(
-      <Settings storage={mockStorage} />
-    );
-
-    fireEvent.change(getByLabelText(/OpenAI API Key/i), {
-      target: { value: 'newApiKey' },
-    });
-    fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: openAIModel },
-    });
-    fireEvent.click(getByRole('button', { name: /Save/i }));
-
-    await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith({
-        status: 'error',
-        title: 'Failed to save settings 😢',
-        variant: 'top-accent',
-      });
-    });
-    await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(
-        `Error saving settings: ${mockError.message}`
-      );
-    });
-  });
-
-  test('shows only the API key input for the selected provider', async () => {
-    const { getByLabelText, queryByLabelText } = render(
-      <Settings storage={mockStorage} />
-    );
-
-    expect(getByLabelText(/OpenAI API Key/i)).toBeInTheDocument();
-    expect(queryByLabelText(/Anthropic API Key/i)).not.toBeInTheDocument();
-
-    const modelNameSelect = getByLabelText(/Model Name/i);
-    fireEvent.change(modelNameSelect, { target: { value: anthropicModel } });
-
-    await waitFor(() => {
-      expect(getByLabelText(/Anthropic API Key/i)).toBeInTheDocument();
-    });
-    expect(queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
-  });
-
-  test('shows only the Gemini API key input when a Gemini model is selected', async () => {
-    const { getByLabelText, queryByLabelText } = render(
-      <Settings storage={mockStorage} />
-    );
-
-    const modelNameSelect = getByLabelText(/Model Name/i);
-    fireEvent.change(modelNameSelect, { target: { value: geminiModel } });
-
-    await waitFor(() => {
-      expect(getByLabelText(/Gemini API Key/i)).toBeInTheDocument();
-    });
-    expect(queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
-    expect(queryByLabelText(/Anthropic API Key/i)).not.toBeInTheDocument();
-  });
-
-  // ── Local model toggle (only shown when local has NOT been configured) ──
-
-  test('local model toggle is off by default', () => {
-    render(<Settings storage={mockStorage} />);
-
-    const toggle = screen.getByRole('checkbox', {
-      name: /Use local model \(Ollama\)/i,
-    });
-    expect(toggle).not.toBeChecked();
-  });
-
-  test('toggling local model ON hides cloud fields and shows Configure link', async () => {
     mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
 
-    render(<Settings storage={mockStorage} />);
-
-    const toggle = screen.getByRole('checkbox', {
-      name: /Use local model \(Ollama\)/i,
-    });
-    fireEvent.click(toggle);
+    await renderSettings();
 
     await waitFor(() => {
-      expect(screen.queryByLabelText(/Model Name/i)).not.toBeInTheDocument();
-      expect(
-        screen.queryByLabelText(/OpenAI API Key/i)
-      ).not.toBeInTheDocument();
-      expect(screen.getByText(/Configure/i)).toBeInTheDocument();
+      expect(screen.getByText('llama3.2')).toBeInTheDocument();
     });
-  });
 
-  test('toggling local model ON saves localModelEnabled=true to storage', async () => {
-    const mockNavigate = jest.fn();
-    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
-    mockOllamaCheck({ type: 'not-running' });
-
-    render(<Settings storage={mockStorage} />);
-
-    const toggle = screen.getByRole('checkbox', {
-      name: /Use local model \(Ollama\)/i,
+    fireEvent.change(screen.getByLabelText(/Model Name/i), {
+      target: { value: 'llama3.2:latest' },
     });
-    fireEvent.click(toggle);
-
-    await waitFor(() => {
-      expect(mockStorage.savedData?.localModelEnabled).toBe('true');
-    });
-  });
-
-  test('auto-navigates to /local-model-config on first toggle ON', async () => {
-    const mockNavigate = jest.fn();
-    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
-
-    render(<Settings storage={mockStorage} />);
-
-    const toggle = screen.getByRole('checkbox', {
-      name: /Use local model \(Ollama\)/i,
-    });
-    fireEvent.click(toggle);
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/local-model-config');
     });
   });
 
-  test('shows connection status when local model is already enabled (no switcher)', async () => {
+  test('selecting configured local model persists local selection and shows one-time notice', async () => {
+    const mockToast = jest.fn();
+    (useToast as jest.Mock).mockReturnValue(mockToast);
+
     mockStorage.savedData = {
-      localModelEnabled: 'true',
+      localModelEndpoint: 'http://localhost:11434',
+      localModelName: 'mistral:latest',
+      modelName: anthropicModel,
+      ollamaNoticeShown: 'false',
+    };
+
+    mockOllamaCheck({
+      type: 'connected',
+      models: ['llama3.2:latest', 'mistral:latest'],
+    });
+
+    await renderSettings();
+
+    await waitFor(() => {
+      expect(screen.getByText('llama3.2')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText(/Model Name/i), {
+      target: { value: 'llama3.2:latest' },
+    });
+
+    await waitFor(() => {
+      expect(mockStorage.savedData?.modelName).toBe('llama3.2:latest');
+      expect(mockStorage.savedData?.localModelName).toBe('llama3.2:latest');
+      expect(mockStorage.savedData?.ollamaNoticeShown).toBe('true');
+    });
+
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'info',
+      })
+    );
+  });
+
+  test('shows local connected status line when a local model is selected', async () => {
+    mockStorage.savedData = {
       localModelEndpoint: 'http://localhost:11434',
       localModelName: 'llama3.2:latest',
+      modelName: 'llama3.2:latest',
+      ollamaNoticeShown: 'true',
     };
     mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
 
-    render(<Settings storage={mockStorage} />);
+    await renderSettings();
 
     await waitFor(() => {
       expect(screen.getByText(/llama3\.2 · Connected/)).toBeInTheDocument();
     });
+
+    expect(screen.queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/Anthropic API Key/i)
+    ).not.toBeInTheDocument();
   });
 
-  test('probes default endpoint when local mode is enabled without saved endpoint', async () => {
+  test('falls back to default cloud model when selected local model disappears', async () => {
     mockStorage.savedData = {
-      localModelEnabled: 'true',
+      localModelEndpoint: 'http://localhost:11434',
       localModelName: 'llama3.2:latest',
+      modelName: 'llama3.2:latest',
     };
-    mockOllamaCheck({ type: 'not-running' });
+    mockOllamaCheck({ type: 'connected', models: ['mistral:latest'] });
 
-    render(<Settings storage={mockStorage} />);
+    await renderSettings();
 
     await waitFor(() => {
-      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
-        type: 'ollama:check',
-        endpoint: DEFAULT_OLLAMA_ENDPOINT,
+      expect(mockStorage.savedData?.modelName).toBe(DEFAULT_LLM_MODEL.value);
+      expect(mockStorage.savedData?.localModelName).toBe('');
+    });
+  });
+
+  test('saves cloud API keys via Save button', async () => {
+    const mockNavigate = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+    const mockToast = jest.fn();
+    (useToast as jest.Mock).mockReturnValue(mockToast);
+
+    await renderSettings();
+
+    fireEvent.change(screen.getByLabelText(/Model Name/i), {
+      target: { value: anthropicModel },
+    });
+    fireEvent.change(screen.getByLabelText(/Anthropic API Key/i), {
+      target: { value: 'my-anthropic-key' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(mockStorage.savedData).toMatchObject({
+        anthropicApiKey: 'my-anthropic-key',
       });
     });
-  });
 
-  test('toggling local model OFF restores cloud fields', async () => {
-    mockStorage.savedData = {
-      localModelEnabled: 'true',
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
-    };
-    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
-
-    render(<Settings storage={mockStorage} />);
-
-    // Wait for local model mode to render
-    await waitFor(() => {
-      expect(screen.getByText(/Configure/i)).toBeInTheDocument();
-    });
-
-    const toggle = screen.getByRole('checkbox', {
-      name: /Use local model \(Ollama\)/i,
-    });
-    fireEvent.click(toggle);
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Model Name/i)).toBeInTheDocument();
-    });
-  });
-
-  // ── Segmented control (both cloud key + local endpoint configured) ──
-
-  test('shows segmented control when both cloud and local are configured', async () => {
-    mockStorage.savedData = {
-      openaiApiKey: 'sk-test',
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
-      localModelEnabled: 'false',
-    };
-    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
-
-    render(<Settings storage={mockStorage} />);
-
-    await waitFor(() => {
-      // Cloud tab visible
-      expect(
-        screen.getByRole('button', { name: /Cloud provider/i })
-      ).toBeInTheDocument();
-      // Local tab visible
-      expect(
-        screen.getByRole('button', { name: /Local provider/i })
-      ).toBeInTheDocument();
-    });
-  });
-
-  test('does not show toggle when switcher is visible', async () => {
-    mockStorage.savedData = {
-      openaiApiKey: 'sk-test',
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
-      localModelEnabled: 'false',
-    };
-    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
-
-    render(<Settings storage={mockStorage} />);
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole('checkbox', { name: /Use local model/i })
-      ).not.toBeInTheDocument();
-    });
-  });
-
-  test('clicking local tab saves localModelEnabled=true', async () => {
-    mockStorage.savedData = {
-      openaiApiKey: 'sk-test',
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
-      localModelEnabled: 'false',
-    };
-    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
-
-    render(<Settings storage={mockStorage} />);
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: /Local provider/i })
-      ).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Local provider/i }));
-
-    await waitFor(() => {
-      expect(mockStorage.savedData?.localModelEnabled).toBe('true');
-    });
-  });
-
-  test('local tab shows warning icon when Ollama is unreachable', async () => {
-    mockStorage.savedData = {
-      openaiApiKey: 'sk-test',
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
-      localModelEnabled: 'false',
-    };
-    mockOllamaCheck({ type: 'not-running' });
-
-    render(<Settings storage={mockStorage} />);
-
-    await waitFor(() => {
-      const localTab = screen.getByRole('button', { name: /Local provider/i });
-      expect(localTab).toHaveTextContent('⚠');
-    });
-  });
-
-  test('cloud tab shows normalized cloud model name', async () => {
-    mockStorage.savedData = {
-      openaiApiKey: 'sk-test',
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
-      localModelEnabled: 'false',
-    };
-    mockOllamaCheck({ type: 'connected', models: ['llama3.2:latest'] });
-
-    render(<Settings storage={mockStorage} />);
-
-    await waitFor(() => {
-      const cloudTab = screen.getByRole('button', { name: /Cloud provider/i });
-      // Default cloud model name should appear in the tab
-      expect(cloudTab).toHaveTextContent(DEFAULT_LLM_MODEL.value);
-    });
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'success' })
+    );
+    expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 });

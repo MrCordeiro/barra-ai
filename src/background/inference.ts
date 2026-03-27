@@ -104,10 +104,12 @@ async function runInference(
  */
 export async function updateCorsRule(): Promise<void> {
   const stored = await chromeStorage.get([
-    'localModelEnabled',
+    'modelName',
+    'localModelName',
     'localModelEndpoint',
   ]);
-  const enabled = stored.localModelEnabled === 'true';
+  const enabled =
+    !!stored.localModelName && stored.modelName === stored.localModelName;
   const endpoint = normalizeEndpointOrigin(
     stored.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT
   );

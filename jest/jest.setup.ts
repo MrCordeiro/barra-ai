@@ -4,9 +4,9 @@ import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
 import { ReadableStream } from 'stream/web';
 const g = global as Record<string, unknown>;
-if (!g.TextEncoder) g.TextEncoder = TextEncoder;
-if (!g.TextDecoder) g.TextDecoder = TextDecoder;
-if (!g.ReadableStream) g.ReadableStream = ReadableStream;
+g.TextEncoder ??= TextEncoder;
+g.TextDecoder ??= TextDecoder;
+g.ReadableStream ??= ReadableStream;
 
 // Minimal Chrome extension API stub for popup/background unit tests.
 // Individual tests can override specific methods with jest.fn() / jest.spyOn().

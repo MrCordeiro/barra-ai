@@ -31,6 +31,13 @@ function mockCheck(status: OllamaConnectionStatus) {
   (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue(status);
 }
 
+async function renderLocalModelConfig() {
+  render(<LocalModelConfig storage={mockStorage} />);
+  await waitFor(() => {
+    expect(chrome.runtime.sendMessage).toHaveBeenCalled();
+  });
+}
+
 describe('<LocalModelConfig />', () => {
   beforeEach(() => {
     mockStorage.savedData = {};
@@ -45,8 +52,8 @@ describe('<LocalModelConfig />', () => {
     jest.restoreAllMocks();
   });
 
-  test('renders with default endpoint and heading', () => {
-    render(<LocalModelConfig storage={mockStorage} />);
+  test('renders with default endpoint and heading', async () => {
+    await renderLocalModelConfig();
 
     expect(screen.getByText('Local Model Setup')).toBeInTheDocument();
     const endpointInput = screen.getByLabelText('Ollama endpoint');
@@ -54,7 +61,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows connected status after connection check succeeds', async () => {
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(
@@ -66,7 +73,7 @@ describe('<LocalModelConfig />', () => {
   test('shows not-running error when connection fails', async () => {
     mockCheck({ type: 'not-running' });
 
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(
@@ -78,7 +85,7 @@ describe('<LocalModelConfig />', () => {
   test('shows no-models message when Ollama is running but empty', async () => {
     mockCheck({ type: 'no-models' });
 
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(
@@ -88,7 +95,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows model dropdown when connected', async () => {
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(screen.getByLabelText('Local model')).toBeInTheDocument();
@@ -101,7 +108,7 @@ describe('<LocalModelConfig />', () => {
   test('model dropdown is disabled when not connected', async () => {
     mockCheck({ type: 'not-running' });
 
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(screen.getByLabelText('Local model')).toBeInTheDocument();
@@ -113,7 +120,7 @@ describe('<LocalModelConfig />', () => {
   test('shows text input for custom server instead of dropdown', async () => {
     mockCheck({ type: 'custom-server' });
 
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(screen.getByLabelText('Model name')).toBeInTheDocument();
@@ -125,7 +132,7 @@ describe('<LocalModelConfig />', () => {
   test('auto-selects model when only one is available', async () => {
     mockCheck({ type: 'connected', models: ['llama3.2:latest'] });
 
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       const select = screen.getByLabelText('Local model');
@@ -134,7 +141,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows :latest-stripped display name in dropdown options', async () => {
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(screen.getByText('llama3.2')).toBeInTheDocument();
@@ -143,7 +150,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows endpoint validation error on blur with invalid URL', async () => {
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     const endpointInput = screen.getByLabelText('Ollama endpoint');
     fireEvent.change(endpointInput, { target: { value: 'not-a-url' } });
@@ -160,7 +167,7 @@ describe('<LocalModelConfig />', () => {
       localModelName: 'mistral:latest',
     };
 
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       const endpointInput = screen.getByLabelText('Ollama endpoint');
@@ -171,7 +178,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('normalizes endpoint to origin when saving on blur', async () => {
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     const endpointInput = screen.getByLabelText('Ollama endpoint');
     fireEvent.change(endpointInput, {
@@ -189,7 +196,7 @@ describe('<LocalModelConfig />', () => {
   test('persists auto-selected single model to storage', async () => {
     mockCheck({ type: 'connected', models: ['llama3.2:latest'] });
 
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(mockStorage.savedData?.localModelName).toBe('llama3.2:latest');
@@ -206,7 +213,7 @@ describe('<LocalModelConfig />', () => {
       models: ['llama3.2:latest', 'mistral:latest'],
     });
 
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(mockStorage.savedData?.localModelName).toBe('');
@@ -247,8 +254,8 @@ describe('<LocalModelConfig />', () => {
     });
   });
 
-  test('quality warning alert is always shown', () => {
-    render(<LocalModelConfig storage={mockStorage} />);
+  test('quality warning alert is always shown', async () => {
+    await renderLocalModelConfig();
 
     expect(
       screen.getByText(/Local models vary in quality/)
@@ -256,7 +263,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('routes connection check through background (sends ollama:check message)', async () => {
-    render(<LocalModelConfig storage={mockStorage} />);
+    await renderLocalModelConfig();
 
     await waitFor(() => {
       expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(

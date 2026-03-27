@@ -15,10 +15,11 @@ function App() {
   useEffect(() => {
     const apiKeyStorageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
     chromeStorage
-      .get([...apiKeyStorageKeys, 'localModelEnabled'])
+      .get([...apiKeyStorageKeys, 'modelName', 'localModelName'])
       .then(result => {
-        const localEnabled = result.localModelEnabled === 'true';
-        if (!localEnabled && apiKeyStorageKeys.every(key => !result[key]))
+        const localSelected =
+          !!result.localModelName && result.modelName === result.localModelName;
+        if (!localSelected && apiKeyStorageKeys.every(key => !result[key]))
           setShowOnboarding(true);
       })
       .catch((error: Error) => {

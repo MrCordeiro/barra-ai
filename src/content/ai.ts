@@ -1,7 +1,13 @@
 'use strict';
 
 import { chromeStorage, Storage } from '../storages';
-import { DEFAULT_LLM_MODEL, getProviderForModel, Provider } from '../models';
+import {
+  DEFAULT_LLM_MODEL,
+  getProviderForModel,
+  LLM_MODEL_OPTIONS,
+  PROVIDER_CONFIG,
+  Provider,
+} from '../models';
 import { fetchGptResponse } from './openai';
 import { fetchAnthropicResponse } from './anthropic';
 import { fetchGeminiResponse } from './gemini';
@@ -48,12 +54,23 @@ export async function fetchAIResponse(
 
   const stored = await chromeStorage.get([
     'modelName',
-    'localModelEnabled',
     'localModelEndpoint',
     'localModelName',
+    PROVIDER_CONFIG.openai.storageKey,
+    PROVIDER_CONFIG.anthropic.storageKey,
+    PROVIDER_CONFIG.gemini.storageKey,
   ]);
 
-  if (stored.localModelEnabled === 'true') {
+  const resolvedModel = stored.modelName || DEFAULT_LLM_MODEL.value;
+  const knownCloudModels = new Set<string>(
+    LLM_MODEL_OPTIONS.map(model => model.value)
+  );
+  const localModelIsSelected =
+    !!stored.localModelName &&
+    (resolvedModel === stored.localModelName ||
+      !knownCloudModels.has(resolvedModel));
+
+  if (localModelIsSelected) {
     const endpoint = stored.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
     if (!stored.localModelName) {
       throw new Error(
@@ -68,8 +85,19 @@ export async function fetchAIResponse(
     );
   }
 
-  const resolvedModel = stored.modelName || DEFAULT_LLM_MODEL.value;
   const provider = getProviderForModel(resolvedModel);
+  const providerApiKey = stored[PROVIDER_CONFIG[provider].storageKey];
+
+  // If cloud credentials are missing, prefer local as a runtime fallback.
+  if (!providerApiKey && stored.localModelName) {
+    return fetchOllamaResponse(
+      prompt,
+      stored.localModelName,
+      stored.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT,
+      onChunk
+    );
+  }
+
   return providerHandlers[provider](
     prompt,
     resolvedModel,
