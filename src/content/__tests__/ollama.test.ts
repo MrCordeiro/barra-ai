@@ -3,6 +3,7 @@ import {
   fetchOllamaResponse,
   normalizeModelDisplay,
   DEFAULT_OLLAMA_ENDPOINT,
+  OllamaStatus,
 } from '../ollama';
 import { makeStream } from '../../../jest/streamTestUtils';
 
@@ -44,7 +45,7 @@ describe('checkOllamaConnection', () => {
     const status = await checkOllamaConnection(DEFAULT_OLLAMA_ENDPOINT);
 
     expect(status).toEqual({
-      type: 'connected',
+      type: OllamaStatus.Connected,
       models: ['llama3.2:latest', 'mistral:latest'],
     });
     expect(global.fetch).toHaveBeenCalledWith(
@@ -60,7 +61,7 @@ describe('checkOllamaConnection', () => {
     });
 
     const status = await checkOllamaConnection(DEFAULT_OLLAMA_ENDPOINT);
-    expect(status).toEqual({ type: 'no-models' });
+    expect(status).toEqual({ type: OllamaStatus.NoModels });
   });
 
   test('returns custom-server when /api/tags fails but /v1/chat/completions responds', async () => {
@@ -70,7 +71,7 @@ describe('checkOllamaConnection', () => {
       .mockResolvedValueOnce({ ok: true });
 
     const status = await checkOllamaConnection('http://localhost:1234');
-    expect(status).toEqual({ type: 'custom-server' });
+    expect(status).toEqual({ type: OllamaStatus.CustomServer });
   });
 
   test('returns not-running when both probes fail', async () => {
@@ -80,7 +81,7 @@ describe('checkOllamaConnection', () => {
       .mockRejectedValueOnce(new Error('connection refused'));
 
     const status = await checkOllamaConnection(DEFAULT_OLLAMA_ENDPOINT);
-    expect(status).toEqual({ type: 'not-running' });
+    expect(status).toEqual({ type: OllamaStatus.NotRunning });
   });
 
   test('returns not-running when /api/tags returns non-ok and /v1/chat/completions fails with 500', async () => {
@@ -90,7 +91,7 @@ describe('checkOllamaConnection', () => {
       .mockResolvedValueOnce({ ok: false, status: 500 });
 
     const status = await checkOllamaConnection(DEFAULT_OLLAMA_ENDPOINT);
-    expect(status).toEqual({ type: 'not-running' });
+    expect(status).toEqual({ type: OllamaStatus.NotRunning });
   });
 
   test('returns custom-server on 4xx from /v1/chat/completions fallback', async () => {
@@ -100,7 +101,7 @@ describe('checkOllamaConnection', () => {
       .mockResolvedValueOnce({ ok: false, status: 400 });
 
     const status = await checkOllamaConnection('http://localhost:1234');
-    expect(status).toEqual({ type: 'custom-server' });
+    expect(status).toEqual({ type: OllamaStatus.CustomServer });
   });
 });
 

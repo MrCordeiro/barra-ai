@@ -23,6 +23,7 @@ import {
   normalizeModelDisplay,
   DEFAULT_OLLAMA_ENDPOINT,
   OllamaConnectionStatus,
+  OllamaStatus,
 } from '../../content/ollama';
 import { Storage } from '../../storages';
 
@@ -67,7 +68,7 @@ const LocalModelConfig = ({ storage }: Props) => {
 
         // If only one model available, auto-select it
         if (
-          status.type === 'connected' &&
+          status.type === OllamaStatus.Connected &&
           status.models.length === 1 &&
           !resolvedSelectedModel
         ) {
@@ -78,7 +79,7 @@ const LocalModelConfig = ({ storage }: Props) => {
         }
         // If previously selected model is no longer in the list, clear it
         if (
-          status.type === 'connected' &&
+          status.type === OllamaStatus.Connected &&
           resolvedSelectedModel &&
           !status.models.includes(resolvedSelectedModel)
         ) {
@@ -86,7 +87,7 @@ const LocalModelConfig = ({ storage }: Props) => {
           await storage.set({ localModelName: '' });
         }
       } catch {
-        setConnectionStatus({ type: 'not-running' });
+        setConnectionStatus({ type: OllamaStatus.NotRunning });
       } finally {
         setIsChecking(false);
       }
@@ -169,12 +170,14 @@ const LocalModelConfig = ({ storage }: Props) => {
   }
 
   const models =
-    connectionStatus?.type === 'connected' ? connectionStatus.models : [];
-  const isCustomServer = connectionStatus?.type === 'custom-server';
+    connectionStatus?.type === OllamaStatus.Connected
+      ? connectionStatus.models
+      : [];
+  const isCustomServer = connectionStatus?.type === OllamaStatus.CustomServer;
   const dropdownDisabled =
     connectionStatus === null ||
-    connectionStatus.type === 'not-running' ||
-    connectionStatus.type === 'no-models';
+    connectionStatus.type === OllamaStatus.NotRunning ||
+    connectionStatus.type === OllamaStatus.NoModels;
 
   return (
     <Box>
@@ -274,7 +277,7 @@ function ConnectionStatusDisplay({
     );
   }
 
-  if (status.type === 'connected') {
+  if (status.type === OllamaStatus.Connected) {
     return (
       <Text fontSize="sm" color="green.600" aria-live="polite">
         Connected — {status.models.length} model
@@ -283,7 +286,7 @@ function ConnectionStatusDisplay({
     );
   }
 
-  if (status.type === 'custom-server') {
+  if (status.type === OllamaStatus.CustomServer) {
     return (
       <Text fontSize="sm" color="green.600" aria-live="polite">
         Connected (custom server)
@@ -291,7 +294,7 @@ function ConnectionStatusDisplay({
     );
   }
 
-  if (status.type === 'no-models') {
+  if (status.type === OllamaStatus.NoModels) {
     return (
       <Box>
         <Text fontSize="sm" color="orange.600" aria-live="polite">

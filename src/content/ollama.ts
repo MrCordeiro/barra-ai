@@ -13,13 +13,18 @@ interface OllamaStreamChunk {
   choices: { delta: { content?: string }; index: number }[];
 }
 
-// TODO: Should this be an Enum
+export enum OllamaStatus {
+  Connected = 'connected',
+  NotRunning = 'not-running',
+  NoModels = 'no-models',
+  CustomServer = 'custom-server',
+}
 
 export type OllamaConnectionStatus =
-  | { type: 'connected'; models: string[] }
-  | { type: 'not-running' }
-  | { type: 'no-models' }
-  | { type: 'custom-server' };
+  | { type: OllamaStatus.Connected; models: string[] }
+  | { type: OllamaStatus.NotRunning }
+  | { type: OllamaStatus.NoModels }
+  | { type: OllamaStatus.CustomServer };
 
 /**
  * Strips the ":latest" suffix from an Ollama model name for display purposes.
@@ -56,9 +61,9 @@ export async function checkOllamaConnection(
       const data = (await response.json()) as OllamaTagsResponse;
       const models = data.models.map(m => m.name);
       if (models.length === 0) {
-        return { type: 'no-models' };
+        return { type: OllamaStatus.NoModels };
       }
-      return { type: 'connected', models };
+      return { type: OllamaStatus.Connected, models };
     }
   } catch {
     // /api/tags failed — try the OpenAI-compatible probe below
@@ -78,13 +83,13 @@ export async function checkOllamaConnection(
     });
     // Any response (even 4xx) means the server is there and OpenAI-compatible
     if (response.ok || response.status < 500) {
-      return { type: 'custom-server' };
+      return { type: OllamaStatus.CustomServer };
     }
   } catch {
     // Both probes failed
   }
 
-  return { type: 'not-running' };
+  return { type: OllamaStatus.NotRunning };
 }
 
 /**

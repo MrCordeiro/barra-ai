@@ -2,7 +2,7 @@
 
 import { triggerNotification, Priority } from './notifications';
 import { handleInferencePort, updateCorsRule } from './inference';
-import { checkOllamaConnection } from '../content/ollama';
+import { checkOllamaConnection, OllamaStatus } from '../content/ollama';
 import { chromeStorage } from '../storages';
 
 interface ApiErrorRequest {
@@ -46,7 +46,7 @@ chrome.runtime.onMessage.addListener(function handleBackgroundRequest(
   if (request.type === 'ollama:check') {
     checkOllamaConnection(request.endpoint)
       .then(result => sendResponse(result))
-      .catch(() => sendResponse({ type: 'not-running' }));
+      .catch(() => sendResponse({ type: OllamaStatus.NotRunning }));
     return true; // keep message channel open for async sendResponse
   }
 });

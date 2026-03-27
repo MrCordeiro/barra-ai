@@ -30,6 +30,7 @@ import {
   DEFAULT_OLLAMA_ENDPOINT,
   normalizeModelDisplay,
   OllamaConnectionStatus,
+  OllamaStatus,
 } from '../../content/ollama';
 
 interface CloudSettings {
@@ -85,7 +86,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     setLocalConnStatus(null);
     checkOllamaConn(endpoint)
       .then(status => setLocalConnStatus(status))
-      .catch(() => setLocalConnStatus({ type: 'not-running' }));
+      .catch(() => setLocalConnStatus({ type: OllamaStatus.NotRunning }));
   };
 
   useEffect(
@@ -131,7 +132,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     connStatus: OllamaConnectionStatus | null,
     modelName: string
   ) => {
-    if (connStatus?.type !== 'connected') return false;
+    if (connStatus?.type !== OllamaStatus.Connected) return false;
     if (!modelName) return false;
     return !connStatus.models.includes(modelName);
   };
@@ -276,8 +277,8 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     if (!isLocalModelSelected) return '';
 
     if (
-      localConnStatus?.type === 'connected' ||
-      localConnStatus?.type === 'custom-server'
+      localConnStatus?.type === OllamaStatus.Connected ||
+      localConnStatus?.type === OllamaStatus.CustomServer
     ) {
       return `${normalizeModelDisplay(localModelName)} · Connected`;
     }
@@ -286,7 +287,9 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   })();
 
   const localModels =
-    localConnStatus?.type === 'connected' ? localConnStatus.models : [];
+    localConnStatus?.type === OllamaStatus.Connected
+      ? localConnStatus.models
+      : [];
 
   const selectedLocalModelStillAvailable =
     !!localModelName && localModels.includes(localModelName);
@@ -337,7 +340,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
               </option>
             )}
 
-            {localConnStatus?.type === 'not-running' && (
+            {localConnStatus?.type === OllamaStatus.NotRunning && (
               <>
                 <option value="__ollama-down" disabled>
                   Ollama not running
@@ -348,7 +351,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
               </>
             )}
 
-            {localConnStatus?.type === 'no-models' && (
+            {localConnStatus?.type === OllamaStatus.NoModels && (
               <>
                 <option value="__ollama-empty" disabled>
                   No models installed
@@ -359,7 +362,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
               </>
             )}
 
-            {localConnStatus?.type === 'connected' && (
+            {localConnStatus?.type === OllamaStatus.Connected && (
               <>
                 <option value="__ollama-label" disabled>
                   Ollama
@@ -380,11 +383,11 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           </Select>
         </FormControl>
 
-        {(localConnStatus?.type === 'not-running' ||
-          localConnStatus?.type === 'no-models') && (
+        {(localConnStatus?.type === OllamaStatus.NotRunning ||
+          localConnStatus?.type === OllamaStatus.NoModels) && (
           <HStack justify="space-between" align="center" mt={2}>
             <Text fontSize="sm" color="gray.600">
-              {localConnStatus.type === 'not-running'
+              {localConnStatus.type === OllamaStatus.NotRunning
                 ? 'Ollama is unavailable.'
                 : 'Install at least one Ollama model to select it.'}
             </Text>

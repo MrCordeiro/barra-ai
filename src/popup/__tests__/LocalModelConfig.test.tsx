@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import { Storage } from '../../storages';
 import LocalModelConfig from '../components/LocalModelConfig';
-import { OllamaConnectionStatus } from '../../content/ollama';
+import { OllamaConnectionStatus, OllamaStatus } from '../../content/ollama';
 
 const mockStorage: Storage & { savedData?: Record<string, string> } = {
   savedData: {},
@@ -42,7 +42,7 @@ describe('<LocalModelConfig />', () => {
   beforeEach(() => {
     mockStorage.savedData = {};
     mockCheck({
-      type: 'connected',
+      type: OllamaStatus.Connected,
       models: ['llama3.2:latest', 'mistral:latest'],
     });
   });
@@ -71,7 +71,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows not-running error when connection fails', async () => {
-    mockCheck({ type: 'not-running' });
+    mockCheck({ type: OllamaStatus.NotRunning });
 
     await renderLocalModelConfig();
 
@@ -83,7 +83,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows no-models message when Ollama is running but empty', async () => {
-    mockCheck({ type: 'no-models' });
+    mockCheck({ type: OllamaStatus.NoModels });
 
     await renderLocalModelConfig();
 
@@ -106,7 +106,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('model dropdown is disabled when not connected', async () => {
-    mockCheck({ type: 'not-running' });
+    mockCheck({ type: OllamaStatus.NotRunning });
 
     await renderLocalModelConfig();
 
@@ -118,7 +118,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('shows text input for custom server instead of dropdown', async () => {
-    mockCheck({ type: 'custom-server' });
+    mockCheck({ type: OllamaStatus.CustomServer });
 
     await renderLocalModelConfig();
 
@@ -130,7 +130,10 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('auto-selects model when only one is available', async () => {
-    mockCheck({ type: 'connected', models: ['llama3.2:latest'] });
+    mockCheck({
+      type: OllamaStatus.Connected,
+      models: ['llama3.2:latest'],
+    });
 
     await renderLocalModelConfig();
 
@@ -194,7 +197,10 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('persists auto-selected single model to storage', async () => {
-    mockCheck({ type: 'connected', models: ['llama3.2:latest'] });
+    mockCheck({
+      type: OllamaStatus.Connected,
+      models: ['llama3.2:latest'],
+    });
 
     await renderLocalModelConfig();
 
@@ -209,7 +215,7 @@ describe('<LocalModelConfig />', () => {
       localModelName: 'stale:model',
     };
     mockCheck({
-      type: 'connected',
+      type: OllamaStatus.Connected,
       models: ['llama3.2:latest', 'mistral:latest'],
     });
 
@@ -236,7 +242,7 @@ describe('<LocalModelConfig />', () => {
   });
 
   test('Check again button triggers connection check', async () => {
-    mockCheck({ type: 'not-running' });
+    mockCheck({ type: OllamaStatus.NotRunning });
 
     render(<LocalModelConfig storage={mockStorage} />);
 
@@ -246,7 +252,10 @@ describe('<LocalModelConfig />', () => {
       ).toBeInTheDocument();
     });
 
-    mockCheck({ type: 'connected', models: ['llama3.2:latest'] });
+    mockCheck({
+      type: OllamaStatus.Connected,
+      models: ['llama3.2:latest'],
+    });
     fireEvent.click(screen.getByRole('button', { name: /Check again/i }));
 
     await waitFor(() => {

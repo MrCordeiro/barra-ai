@@ -265,12 +265,12 @@ describe('updateCorsRule', () => {
       storageValues: {
         modelName: 'llama3.2:latest',
         localModelName: 'llama3.2:latest',
-        localModelEndpoint: 'http://localhost:11434',
+        localModelEndpoint: 'http://localhost:11435',
       },
     });
     await updateCorsRule();
 
-    expectCorsRuleApplied('http://localhost:11434');
+    expectCorsRuleApplied('http://localhost:11435');
   });
 
   test('normalizes endpoint path to origin in rule values', async () => {
