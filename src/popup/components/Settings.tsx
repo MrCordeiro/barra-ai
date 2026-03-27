@@ -7,12 +7,10 @@ import {
   FormHelperText,
   FormLabel,
   Heading,
-  HStack,
   Input,
   InputGroup,
   InputRightElement,
   Link,
-  Select,
   Text,
   useToast,
 } from '@chakra-ui/react';
@@ -28,10 +26,10 @@ import {
 import { Storage } from '../../storages';
 import {
   DEFAULT_OLLAMA_ENDPOINT,
-  normalizeModelDisplay,
   OllamaConnectionStatus,
   OllamaStatus,
 } from '../../content/ollama';
+import { ModelSelectField } from './ModelSelectField';
 
 interface CloudSettings {
   apiKeys: Record<Provider, string>;
@@ -268,32 +266,6 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     </InputRightElement>
   );
 
-  const isLocalModelSelected =
-    !activeModelIsCloud &&
-    !!localModelName &&
-    settings.modelName === localModelName;
-
-  const localStatusText = (() => {
-    if (!isLocalModelSelected) return '';
-
-    if (
-      localConnStatus?.type === OllamaStatus.Connected ||
-      localConnStatus?.type === OllamaStatus.CustomServer
-    ) {
-      return `${normalizeModelDisplay(localModelName)} · Connected`;
-    }
-
-    return '⚠ Ollama not reachable';
-  })();
-
-  const localModels =
-    localConnStatus?.type === OllamaStatus.Connected
-      ? localConnStatus.models
-      : [];
-
-  const selectedLocalModelStillAvailable =
-    !!localModelName && localModels.includes(localModelName);
-
   return (
     <>
       {showOnboarding ? (
@@ -312,111 +284,13 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       )}
 
       <form aria-label="Settings form" onSubmit={saveSettings}>
-        <FormControl isRequired mt={6}>
-          <FormLabel>Model Name</FormLabel>
-          <Select
-            id="model-name"
-            name="modelName"
-            value={settings.modelName}
-            onChange={handleModelChange}
-            aria-label="Model Name"
-          >
-            {LLM_MODEL_OPTIONS.map(model => (
-              <option key={model.value} value={model.value}>
-                {model.name}
-                {model.value === DEFAULT_LLM_MODEL.value
-                  ? ' (Recommended)'
-                  : ''}
-              </option>
-            ))}
-
-            <option value="__divider" disabled>
-              ------------
-            </option>
-
-            {localConnStatus === null && (
-              <option value="__ollama-loading" disabled>
-                Checking Ollama…
-              </option>
-            )}
-
-            {localConnStatus?.type === OllamaStatus.NotRunning && (
-              <>
-                <option value="__ollama-down" disabled>
-                  Ollama not running
-                </option>
-                <option value="__ollama-run" disabled>
-                  Run: ollama serve
-                </option>
-              </>
-            )}
-
-            {localConnStatus?.type === OllamaStatus.NoModels && (
-              <>
-                <option value="__ollama-empty" disabled>
-                  No models installed
-                </option>
-                <option value="__ollama-pull" disabled>
-                  Run: ollama pull llama3.2
-                </option>
-              </>
-            )}
-
-            {localConnStatus?.type === OllamaStatus.Connected && (
-              <>
-                <option value="__ollama-label" disabled>
-                  Ollama
-                </option>
-                {localConnStatus.models.map(model => (
-                  <option key={model} value={model}>
-                    {normalizeModelDisplay(model)}
-                  </option>
-                ))}
-              </>
-            )}
-
-            {isLocalModelSelected && !selectedLocalModelStillAvailable && (
-              <option value={settings.modelName}>
-                {normalizeModelDisplay(settings.modelName)} (Unavailable)
-              </option>
-            )}
-          </Select>
-        </FormControl>
-
-        {(localConnStatus?.type === OllamaStatus.NotRunning ||
-          localConnStatus?.type === OllamaStatus.NoModels) && (
-          <HStack justify="space-between" align="center" mt={2}>
-            <Text fontSize="sm" color="gray.600">
-              {localConnStatus.type === OllamaStatus.NotRunning
-                ? 'Ollama is unavailable.'
-                : 'Install at least one Ollama model to select it.'}
-            </Text>
-            <Link
-              fontSize="sm"
-              color="blue.500"
-              cursor="pointer"
-              onClick={() => navigate('/local-model-config')}
-              aria-label="Configure local model"
-            >
-              Configure
-            </Link>
-          </HStack>
-        )}
-
-        {isLocalModelSelected && (
-          <HStack justify="space-between" align="center" mt={4}>
-            <Text fontSize="sm">{localStatusText}</Text>
-            <Link
-              fontSize="sm"
-              color="blue.500"
-              cursor="pointer"
-              onClick={() => navigate('/local-model-config')}
-              aria-label="Configure local model"
-            >
-              Configure
-            </Link>
-          </HStack>
-        )}
+        <ModelSelectField
+          modelName={settings.modelName}
+          localModelName={localModelName}
+          localConnStatus={localConnStatus}
+          onModelChange={handleModelChange}
+          onConfigureLocalModel={() => navigate('/local-model-config')}
+        />
 
         {activeModelIsCloud &&
           PROVIDERS.map(
@@ -463,5 +337,3 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
 };
 
 export default Settings;
-
-// FIXME: Component doing too much
