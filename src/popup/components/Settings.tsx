@@ -31,17 +31,25 @@ import {
 } from '../../content/ollama';
 import { ModelSelectField } from './ModelSelectField';
 
-interface CloudSettings {
-  apiKeys: Record<Provider, string>;
+interface OllamaSettings {
+  endpoint: string; // '' = not configured
   modelName: string;
+  noticeShown: boolean;
 }
 
-const defaultCloudSettings: CloudSettings = {
+interface SettingsState {
+  apiKeys: Record<Provider, string>;
+  modelName: string;
+  ollama: OllamaSettings;
+}
+
+const defaultSettings: SettingsState = {
   apiKeys: Object.fromEntries(PROVIDERS.map(p => [p, ''])) as Record<
     Provider,
     string
   >,
   modelName: DEFAULT_LLM_MODEL.value,
+  ollama: { endpoint: '', modelName: '', noticeShown: false },
 };
 
 interface Props {
@@ -64,18 +72,11 @@ const cloudModelValues = new Set<string>(
 );
 
 const Settings = ({ storage, showOnboarding = false }: Props) => {
-  const [settings, setSettings] = useState<CloudSettings>(defaultCloudSettings);
+  const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [showKeys, setShowKeys] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
-
-  const [localModelEndpoint, setLocalModelEndpoint] = useState(
-    DEFAULT_OLLAMA_ENDPOINT
-  );
-  const [localModelName, setLocalModelName] = useState('');
-  const [localModelConfigured, setLocalModelConfigured] = useState(false);
   const [localConnStatus, setLocalConnStatus] =
     useState<OllamaConnectionStatus | null>(null);
-  const [ollamaNoticeShown, setOllamaNoticeShown] = useState(false);
 
   const toast = useToast();
   const navigate = useNavigate();
@@ -103,21 +104,20 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             PROVIDERS.map(p => [p, result[PROVIDER_CONFIG[p].storageKey] ?? ''])
           ) as Record<Provider, string>;
 
+          const ollamaEndpoint = result.localModelEndpoint || '';
+
           setSettings({
             apiKeys: normalizedApiKeys,
-            modelName: result.modelName || defaultCloudSettings.modelName,
+            modelName: result.modelName || defaultSettings.modelName,
+            ollama: {
+              endpoint: ollamaEndpoint,
+              modelName: result.localModelName || '',
+              noticeShown: result.ollamaNoticeShown === 'true',
+            },
           });
-
-          const endpoint = result.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
-          const configured = !!result.localModelEndpoint;
-
-          setLocalModelConfigured(configured);
-          setLocalModelEndpoint(endpoint);
-          setLocalModelName(result.localModelName || '');
-          setOllamaNoticeShown(result.ollamaNoticeShown === 'true');
           setIsFormDirty(false);
 
-          refreshOllamaStatus(endpoint);
+          refreshOllamaStatus(ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT);
         })
         .catch((error: Error) => {
           console.error(`Error loading settings: ${error.message}`);
@@ -137,24 +137,29 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
 
   useEffect(
     function ensureLocalModelIsValid() {
-      if (!isLocalModelStale(localConnStatus, localModelName)) return;
+      if (!isLocalModelStale(localConnStatus, settings.ollama.modelName))
+        return;
 
       // If we reached this point, it means the previously selected local model
       // is no longer available. We need to clear it from both state and storage.
       const updates: Record<string, string> = { localModelName: '' };
-      const activeModelIsMissing = settings.modelName === localModelName;
+      const activeModelIsMissing =
+        settings.modelName === settings.ollama.modelName;
 
       if (activeModelIsMissing) {
         updates.modelName = DEFAULT_LLM_MODEL.value;
-        setSettings(prev => ({ ...prev, modelName: DEFAULT_LLM_MODEL.value }));
       }
 
-      setLocalModelName('');
+      setSettings(prev => ({
+        ...prev,
+        ...(activeModelIsMissing && { modelName: DEFAULT_LLM_MODEL.value }),
+        ollama: { ...prev.ollama, modelName: '' },
+      }));
       storage.set(updates).catch((error: Error) => {
         console.error(`Error updating stale local model: ${error.message}`);
       });
     },
-    [localConnStatus, localModelName, settings.modelName, storage]
+    [localConnStatus, settings.ollama.modelName, settings.modelName, storage]
   );
 
   const handleApiKeyChange =
@@ -172,7 +177,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   ) => {
     const payload: Record<string, string> = {
       modelName,
-      localModelEndpoint,
+      localModelEndpoint: settings.ollama.endpoint || DEFAULT_OLLAMA_ENDPOINT,
     };
 
     if (selectedLocalModel) {
@@ -200,23 +205,29 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     }
 
     // Selecting a local model requires local setup first.
-    if (!localModelConfigured) {
+    if (!settings.ollama.endpoint) {
       navigate('/local-model-config');
       return;
     }
 
-    setLocalModelName(nextModel);
-    setSettings(prev => ({ ...prev, modelName: nextModel }));
+    setSettings(prev => ({
+      ...prev,
+      modelName: nextModel,
+      ollama: { ...prev.ollama, modelName: nextModel },
+    }));
     persistSelectedModel(nextModel, nextModel);
 
-    if (!ollamaNoticeShown) {
+    if (!settings.ollama.noticeShown) {
       toast({
         status: 'info',
         title:
           'Runs on your machine via Ollama. May be slower or less accurate.',
         variant: 'top-accent',
       });
-      setOllamaNoticeShown(true);
+      setSettings(prev => ({
+        ...prev,
+        ollama: { ...prev.ollama, noticeShown: true },
+      }));
       storage.set({ ollamaNoticeShown: 'true' }).catch((error: Error) => {
         console.error(`Error saving Ollama notice state: ${error.message}`);
       });
@@ -286,7 +297,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       <form aria-label="Settings form" onSubmit={saveSettings}>
         <ModelSelectField
           modelName={settings.modelName}
-          localModelName={localModelName}
+          localModelName={settings.ollama.modelName}
           localConnStatus={localConnStatus}
           onModelChange={handleModelChange}
           onConfigureLocalModel={() => navigate('/local-model-config')}
