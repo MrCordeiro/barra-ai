@@ -20,7 +20,6 @@ const cloudModelValues = new Set<string>(
 
 interface Props {
   modelName: string;
-  localModelName: string;
   localConnStatus: OllamaConnectionStatus | null;
   onModelChange: (e: ChangeEvent<HTMLSelectElement>) => void;
   onConfigureLocalModel: () => void;
@@ -80,15 +79,12 @@ function renderLocalModelsOptions(
 
 export function ModelSelectField({
   modelName,
-  localModelName,
   localConnStatus,
   onModelChange,
   onConfigureLocalModel,
 }: Props) {
   const activeModelIsCloud = cloudModelValues.has(modelName);
-
-  const isLocalModelSelected =
-    !activeModelIsCloud && !!localModelName && modelName === localModelName;
+  const isLocalModelSelected = !activeModelIsCloud;
 
   const localStatusText = (() => {
     if (!isLocalModelSelected) return '';
@@ -97,7 +93,7 @@ export function ModelSelectField({
       localConnStatus?.type === OllamaStatus.Connected ||
       localConnStatus?.type === OllamaStatus.CustomServer
     ) {
-      return `${normalizeModelDisplay(localModelName)} · Connected`;
+      return `${normalizeModelDisplay(modelName)} · Connected`;
     }
 
     return '⚠ Ollama not reachable';
@@ -109,7 +105,7 @@ export function ModelSelectField({
       : [];
 
   const selectedLocalModelStillAvailable =
-    !!localModelName && localModels.includes(localModelName);
+    isLocalModelSelected && localModels.includes(modelName);
 
   return (
     <>

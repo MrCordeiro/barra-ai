@@ -33,7 +33,6 @@ import { ModelSelectField } from './ModelSelectField';
 
 interface OllamaSettings {
   endpoint: string; // '' = not configured
-  modelName: string;
   noticeShown: boolean;
 }
 
@@ -49,7 +48,7 @@ const defaultSettings: SettingsState = {
     string
   >,
   modelName: DEFAULT_LLM_MODEL.value,
-  ollama: { endpoint: '', modelName: '', noticeShown: false },
+  ollama: { endpoint: '', noticeShown: false },
 };
 
 interface Props {
@@ -81,6 +80,8 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const toast = useToast();
   const navigate = useNavigate();
 
+  const activeModelIsCloud = cloudModelValues.has(settings.modelName);
+
   const refreshOllamaStatus = (endpoint: string) => {
     setLocalConnStatus(null);
     checkOllamaConn(endpoint)
@@ -96,7 +97,6 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           ...storageKeys,
           'modelName',
           'localModelEndpoint',
-          'localModelName',
           'ollamaNoticeShown',
         ])
         .then(result => {
@@ -111,7 +111,6 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             modelName: result.modelName || defaultSettings.modelName,
             ollama: {
               endpoint: ollamaEndpoint,
-              modelName: result.localModelName || '',
               noticeShown: result.ollamaNoticeShown === 'true',
             },
           });
@@ -137,29 +136,18 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
 
   useEffect(
     function ensureLocalModelIsValid() {
-      if (!isLocalModelStale(localConnStatus, settings.ollama.modelName))
-        return;
+      if (activeModelIsCloud) return;
+      if (!isLocalModelStale(localConnStatus, settings.modelName)) return;
 
-      // If we reached this point, it means the previously selected local model
-      // is no longer available. We need to clear it from both state and storage.
-      const updates: Record<string, string> = { localModelName: '' };
-      const activeModelIsMissing =
-        settings.modelName === settings.ollama.modelName;
-
-      if (activeModelIsMissing) {
-        updates.modelName = DEFAULT_LLM_MODEL.value;
-      }
-
-      setSettings(prev => ({
-        ...prev,
-        ...(activeModelIsMissing && { modelName: DEFAULT_LLM_MODEL.value }),
-        ollama: { ...prev.ollama, modelName: '' },
-      }));
-      storage.set(updates).catch((error: Error) => {
-        console.error(`Error updating stale local model: ${error.message}`);
-      });
+      // The active local model is no longer available in Ollama.
+      setSettings(prev => ({ ...prev, modelName: DEFAULT_LLM_MODEL.value }));
+      storage
+        .set({ modelName: DEFAULT_LLM_MODEL.value, localModelName: '' })
+        .catch((error: Error) => {
+          console.error(`Error updating stale local model: ${error.message}`);
+        });
     },
-    [localConnStatus, settings.ollama.modelName, settings.modelName, storage]
+    [localConnStatus, settings.modelName, storage]
   );
 
   const handleApiKeyChange =
@@ -192,9 +180,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const nextModel = e.target.value;
 
-    if (!nextModel || nextModel.startsWith('__')) {
-      return;
-    }
+    if (!nextModel || nextModel.startsWith('__')) return;
 
     const isCloudModel = cloudModelValues.has(nextModel);
 
@@ -210,11 +196,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       return;
     }
 
-    setSettings(prev => ({
-      ...prev,
-      modelName: nextModel,
-      ollama: { ...prev.ollama, modelName: nextModel },
-    }));
+    setSettings(prev => ({ ...prev, modelName: nextModel }));
     persistSelectedModel(nextModel, nextModel);
 
     if (!settings.ollama.noticeShown) {
@@ -264,7 +246,6 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const handleShowKeysClick = () => setShowKeys(!showKeys);
   const inputType = showKeys ? 'text' : 'password';
 
-  const activeModelIsCloud = cloudModelValues.has(settings.modelName);
   const selectedProvider = activeModelIsCloud
     ? getProviderForModel(settings.modelName)
     : null;
@@ -297,7 +278,6 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       <form aria-label="Settings form" onSubmit={saveSettings}>
         <ModelSelectField
           modelName={settings.modelName}
-          localModelName={settings.ollama.modelName}
           localConnStatus={localConnStatus}
           onModelChange={handleModelChange}
           onConfigureLocalModel={() => navigate('/local-model-config')}
