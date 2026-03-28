@@ -180,13 +180,13 @@ const LocalModelConfig = ({ storage }: Props) => {
 
   return (
     <Box>
-      <Heading as="h2" size="md" mb={4}>
+      <Heading as="h1" textAlign="center" mb={4}>
         Local Model Setup
       </Heading>
 
       <Text fontSize="sm" mb={4} color="gray.600">
         Run models on your machine via Ollama. You need Ollama installed and
-        running. If that means nothing to you, turn this off in settings.
+        running.
       </Text>
 
       <FormControl isInvalid={!!endpointError} mb={4}>
@@ -294,10 +294,10 @@ function ConnectionStatusDisplay({
       return (
         <Box>
           <Text fontSize="sm" color="orange.600" aria-live="polite">
-            Connected, but no models found. Pull a model first:
-          </Text>
-          <Text fontSize="sm" fontFamily="mono" mt={1}>
-            ollama pull llama3.2
+            Connected, but no models found. Pull a model first:{' '}
+            <Text as="span" fontFamily="mono">
+              ollama pull llama3.2
+            </Text>
           </Text>
           <Button size="xs" mt={2} onClick={onCheckAgain}>
             Check again
@@ -309,10 +309,10 @@ function ConnectionStatusDisplay({
         <Box>
           <Text fontSize="sm" color="red.600" aria-live="polite">
             Can&apos;t reach Ollama at this address. Make sure Ollama is
-            running:
-          </Text>
-          <Text fontSize="sm" fontFamily="mono" mt={1}>
-            ollama serve
+            running:{' '}
+            <Text as="span" fontFamily="mono">
+              ollama serve
+            </Text>
           </Text>
           <Button size="xs" mt={2} onClick={onCheckAgain}>
             Check again
@@ -324,14 +324,6 @@ function ConnectionStatusDisplay({
 
 export default LocalModelConfig;
 
-// FIXME - Back arrow should return to previous page, not always home
 // FIXME - Back arrow overlaps with title
-// FIXME - Title alignment inconsistent with other pages (should be centered)
 // FIXME - Background "ends" when error message appears, leaving a blank area below it
-// FIXME - Connection error message should be inline with the command suggestion, not in a separate box
-// TODO - Add loading incator when checking connection
-// TODO - Rethink home screen (it's kinda pointless)
-// TODO - Rethink how users find "local". Too prominent
-// TODO - "Cloud" is not a common term. Maybe just use the model name (e.g. "gpt-4o")
-// FIXME - Message "Run models on your machine via Ollama. You need Ollama installed and running. If that means nothing to you, turn this off in settings." is untrue. There is no off button in the settings
-// TODO - Refactor. Some of the code looks complicated. Logic should be extracted.
+// TODO - Add loading indicator when checking connection

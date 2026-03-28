@@ -26,8 +26,8 @@ const NavBar = () => {
         <IconButton
           icon={<ArrowBackIcon />}
           variant={'ghost'}
-          onClick={() => navigate('/')}
-          aria-label="Go back to Home"
+          onClick={() => navigate(-1)}
+          aria-label="Go back"
         />
       )}
       <Flex justifyContent="flex-end">

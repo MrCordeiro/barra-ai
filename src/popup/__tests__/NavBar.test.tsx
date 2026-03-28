@@ -9,7 +9,7 @@ describe('NavBar', () => {
 
     render(<NavBar />);
 
-    const backButton = screen.queryByLabelText('Go back to Home');
+    const backButton = screen.queryByLabelText('Go back');
     const settingsButton = screen.getByLabelText('Settings');
 
     expect(backButton).not.toBeInTheDocument();
@@ -24,10 +24,10 @@ describe('NavBar', () => {
       expectedPath: '/settings',
     },
     {
-      description: 'go back to home page',
+      description: 'go back to previous page',
       initialPath: '/settings',
-      buttonLabel: 'Go back to Home',
-      expectedPath: '/',
+      buttonLabel: 'Go back',
+      expectedPath: -1,
     },
   ];
 
