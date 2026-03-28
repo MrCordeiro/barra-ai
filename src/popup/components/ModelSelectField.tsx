@@ -10,7 +10,7 @@ import {
 import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
 import {
   normalizeModelDisplay,
-  OllamaConnectionStatus,
+  OllamaModelAvailability,
   OllamaStatus,
 } from '../../content/ollama';
 
@@ -20,13 +20,13 @@ const cloudModelValues = new Set<string>(
 
 interface Props {
   modelName: string;
-  localConnStatus: OllamaConnectionStatus | null;
+  localConnStatus: OllamaModelAvailability | null;
   onModelChange: (e: ChangeEvent<HTMLSelectElement>) => void;
   onConfigureLocalModel: () => void;
 }
 
 function renderLocalModelsOptions(
-  localConnStatus: OllamaConnectionStatus | null
+  localConnStatus: OllamaModelAvailability | null
 ) {
   if (!localConnStatus) {
     return (
@@ -36,7 +36,7 @@ function renderLocalModelsOptions(
     );
   }
 
-  switch (localConnStatus.type) {
+  switch (localConnStatus.status) {
     case OllamaStatus.NotRunning:
       return (
         <>
@@ -90,8 +90,8 @@ export function ModelSelectField({
     if (!isLocalModelSelected) return '';
 
     if (
-      localConnStatus?.type === OllamaStatus.Connected ||
-      localConnStatus?.type === OllamaStatus.CustomServer
+      localConnStatus?.status === OllamaStatus.Connected ||
+      localConnStatus?.status === OllamaStatus.CustomServer
     ) {
       return `${normalizeModelDisplay(modelName)} · Connected`;
     }
@@ -100,7 +100,7 @@ export function ModelSelectField({
   })();
 
   const localModels =
-    localConnStatus?.type === OllamaStatus.Connected
+    localConnStatus?.status === OllamaStatus.Connected
       ? localConnStatus.models
       : [];
 
@@ -139,11 +139,11 @@ export function ModelSelectField({
         </Select>
       </FormControl>
 
-      {(localConnStatus?.type === OllamaStatus.NotRunning ||
-        localConnStatus?.type === OllamaStatus.NoModels) && (
+      {(localConnStatus?.status === OllamaStatus.NotRunning ||
+        localConnStatus?.status === OllamaStatus.NoModels) && (
         <HStack justify="space-between" align="center" mt={2}>
           <Text fontSize="sm" color="gray.600">
-            {localConnStatus.type === OllamaStatus.NotRunning
+            {localConnStatus.status === OllamaStatus.NotRunning
               ? 'Ollama is unavailable.'
               : 'Install at least one Ollama model to select it.'}
           </Text>

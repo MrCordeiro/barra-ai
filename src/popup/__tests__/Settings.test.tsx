@@ -3,7 +3,7 @@ import { useToast } from '@chakra-ui/react';
 import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
 import { Storage } from '../../storages';
-import { OllamaConnectionStatus, OllamaStatus } from '../../content/ollama';
+import { OllamaModelAvailability, OllamaStatus } from '../../content/ollama';
 import Settings from '../components/Settings';
 
 /**
@@ -57,8 +57,8 @@ jest.mock('@chakra-ui/react', () => {
 });
 
 function mockOllamaCheck(
-  result: OllamaConnectionStatus = {
-    type: OllamaStatus.NotRunning,
+  result: OllamaModelAvailability = {
+    status: OllamaStatus.NotRunning,
   }
 ) {
   (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue(result);
@@ -74,7 +74,7 @@ async function renderSettings(props: { showOnboarding?: boolean } = {}) {
 describe('<Settings />', () => {
   beforeEach(() => {
     mockStorage.savedData = {};
-    mockOllamaCheck({ type: OllamaStatus.NotRunning });
+    mockOllamaCheck({ status: OllamaStatus.NotRunning });
   });
 
   afterEach(() => {
@@ -98,7 +98,7 @@ describe('<Settings />', () => {
   });
 
   test('shows Ollama not-running state in selector', async () => {
-    mockOllamaCheck({ type: OllamaStatus.NotRunning });
+    mockOllamaCheck({ status: OllamaStatus.NotRunning });
     await renderSettings();
 
     await waitFor(() => {
@@ -111,7 +111,7 @@ describe('<Settings />', () => {
 
   test('shows Ollama model list when connected', async () => {
     mockOllamaCheck({
-      type: OllamaStatus.Connected,
+      status: OllamaStatus.Connected,
       models: ['llama3.2:latest', 'mistral:latest'],
     });
 
@@ -142,7 +142,7 @@ describe('<Settings />', () => {
     const mockNavigate = jest.fn();
     (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
     mockOllamaCheck({
-      type: OllamaStatus.Connected,
+      status: OllamaStatus.Connected,
       models: ['llama3.2:latest'],
     });
 
@@ -173,7 +173,7 @@ describe('<Settings />', () => {
     };
 
     mockOllamaCheck({
-      type: OllamaStatus.Connected,
+      status: OllamaStatus.Connected,
       models: ['llama3.2:latest', 'mistral:latest'],
     });
 
@@ -208,7 +208,7 @@ describe('<Settings />', () => {
       ollamaNoticeShown: 'true',
     };
     mockOllamaCheck({
-      type: OllamaStatus.Connected,
+      status: OllamaStatus.Connected,
       models: ['llama3.2:latest'],
     });
 
@@ -231,7 +231,7 @@ describe('<Settings />', () => {
       modelName: 'llama3.2:latest',
     };
     mockOllamaCheck({
-      type: OllamaStatus.Connected,
+      status: OllamaStatus.Connected,
       models: ['mistral:latest'],
     });
 

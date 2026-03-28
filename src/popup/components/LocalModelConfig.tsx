@@ -22,7 +22,7 @@ import {
 import {
   normalizeModelDisplay,
   DEFAULT_OLLAMA_ENDPOINT,
-  OllamaConnectionStatus,
+  OllamaModelAvailability,
   OllamaStatus,
 } from '../../content/ollama';
 import { Storage } from '../../storages';
@@ -49,7 +49,7 @@ const LocalModelConfig = ({ storage }: Props) => {
   const [selectedModel, setSelectedModel] = useState('');
   const [endpointError, setEndpointError] = useState('');
   const [connectionStatus, setConnectionStatus] =
-    useState<OllamaConnectionStatus | null>(null);
+    useState<OllamaModelAvailability | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -57,37 +57,36 @@ const LocalModelConfig = ({ storage }: Props) => {
     async (url: string, currentSelectedModel = selectedModel) => {
       setIsChecking(true);
       try {
-        const status: OllamaConnectionStatus = await chrome.runtime.sendMessage(
-          {
+        const modelAvailability: OllamaModelAvailability =
+          await chrome.runtime.sendMessage({
             type: 'ollama:check',
             endpoint: url,
-          }
-        );
-        setConnectionStatus(status);
+          });
+        setConnectionStatus(modelAvailability);
         let resolvedSelectedModel = currentSelectedModel;
 
         // If only one model available, auto-select it
         if (
-          status.type === OllamaStatus.Connected &&
-          status.models.length === 1 &&
+          modelAvailability.status === OllamaStatus.Connected &&
+          modelAvailability.models.length === 1 &&
           !resolvedSelectedModel
         ) {
-          const model = status.models[0];
+          const model = modelAvailability.models[0];
           resolvedSelectedModel = model;
           setSelectedModel(model);
           await storage.set({ localModelName: model });
         }
         // If previously selected model is no longer in the list, clear it
         if (
-          status.type === OllamaStatus.Connected &&
+          modelAvailability.status === OllamaStatus.Connected &&
           resolvedSelectedModel &&
-          !status.models.includes(resolvedSelectedModel)
+          !modelAvailability.models.includes(resolvedSelectedModel)
         ) {
           setSelectedModel('');
           await storage.set({ localModelName: '' });
         }
       } catch {
-        setConnectionStatus({ type: OllamaStatus.NotRunning });
+        setConnectionStatus({ status: OllamaStatus.NotRunning });
       } finally {
         setIsChecking(false);
       }
@@ -170,14 +169,14 @@ const LocalModelConfig = ({ storage }: Props) => {
   }
 
   const models =
-    connectionStatus?.type === OllamaStatus.Connected
+    connectionStatus?.status === OllamaStatus.Connected
       ? connectionStatus.models
       : [];
-  const isCustomServer = connectionStatus?.type === OllamaStatus.CustomServer;
+  const isCustomServer = connectionStatus?.status === OllamaStatus.CustomServer;
   const dropdownDisabled =
     connectionStatus === null ||
-    connectionStatus.type === OllamaStatus.NotRunning ||
-    connectionStatus.type === OllamaStatus.NoModels;
+    connectionStatus.status === OllamaStatus.NotRunning ||
+    connectionStatus.status === OllamaStatus.NoModels;
 
   return (
     <Box>
@@ -206,7 +205,7 @@ const LocalModelConfig = ({ storage }: Props) => {
       </FormControl>
 
       <ConnectionStatusDisplay
-        status={connectionStatus}
+        modelAvailability={connectionStatus}
         isChecking={isChecking}
         onCheckAgain={handleCheckAgain}
       />
@@ -259,17 +258,17 @@ const LocalModelConfig = ({ storage }: Props) => {
 };
 
 interface StatusProps {
-  status: OllamaConnectionStatus | null;
+  modelAvailability: OllamaModelAvailability | null;
   isChecking: boolean;
   onCheckAgain: () => void;
 }
 
 function ConnectionStatusDisplay({
-  status,
+  modelAvailability,
   isChecking,
   onCheckAgain,
 }: StatusProps) {
-  if (isChecking || status === null) {
+  if (isChecking || modelAvailability === null) {
     return (
       <Text fontSize="sm" color="gray.500">
         Checking connection…
@@ -277,52 +276,50 @@ function ConnectionStatusDisplay({
     );
   }
 
-  if (status.type === OllamaStatus.Connected) {
-    return (
-      <Text fontSize="sm" color="green.600" aria-live="polite">
-        Connected — {status.models.length} model
-        {status.models.length !== 1 ? 's' : ''} available
-      </Text>
-    );
-  }
-
-  if (status.type === OllamaStatus.CustomServer) {
-    return (
-      <Text fontSize="sm" color="green.600" aria-live="polite">
-        Connected (custom server)
-      </Text>
-    );
-  }
-
-  if (status.type === OllamaStatus.NoModels) {
-    return (
-      <Box>
-        <Text fontSize="sm" color="orange.600" aria-live="polite">
-          Connected, but no models found. Pull a model first:
+  switch (modelAvailability.status) {
+    case OllamaStatus.Connected:
+      return (
+        <Text fontSize="sm" color="green.600" aria-live="polite">
+          Connected — {modelAvailability.models.length} model
+          {modelAvailability.models.length !== 1 ? 's' : ''} available
         </Text>
-        <Text fontSize="sm" fontFamily="mono" mt={1}>
-          ollama pull llama3.2
+      );
+    case OllamaStatus.CustomServer:
+      return (
+        <Text fontSize="sm" color="green.600" aria-live="polite">
+          Connected (custom server)
         </Text>
-        <Button size="xs" mt={2} onClick={onCheckAgain}>
-          Check again
-        </Button>
-      </Box>
-    );
+      );
+    case OllamaStatus.NoModels:
+      return (
+        <Box>
+          <Text fontSize="sm" color="orange.600" aria-live="polite">
+            Connected, but no models found. Pull a model first:
+          </Text>
+          <Text fontSize="sm" fontFamily="mono" mt={1}>
+            ollama pull llama3.2
+          </Text>
+          <Button size="xs" mt={2} onClick={onCheckAgain}>
+            Check again
+          </Button>
+        </Box>
+      );
+    default:
+      return (
+        <Box>
+          <Text fontSize="sm" color="red.600" aria-live="polite">
+            Can&apos;t reach Ollama at this address. Make sure Ollama is
+            running:
+          </Text>
+          <Text fontSize="sm" fontFamily="mono" mt={1}>
+            ollama serve
+          </Text>
+          <Button size="xs" mt={2} onClick={onCheckAgain}>
+            Check again
+          </Button>
+        </Box>
+      );
   }
-
-  return (
-    <Box>
-      <Text fontSize="sm" color="red.600" aria-live="polite">
-        Can&apos;t reach Ollama at this address. Make sure Ollama is running:
-      </Text>
-      <Text fontSize="sm" fontFamily="mono" mt={1}>
-        ollama serve
-      </Text>
-      <Button size="xs" mt={2} onClick={onCheckAgain}>
-        Check again
-      </Button>
-    </Box>
-  );
 }
 
 export default LocalModelConfig;

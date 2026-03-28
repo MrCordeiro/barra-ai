@@ -20,11 +20,11 @@ export enum OllamaStatus {
   CustomServer = 'custom-server',
 }
 
-export type OllamaConnectionStatus =
-  | { type: OllamaStatus.Connected; models: string[] }
-  | { type: OllamaStatus.NotRunning }
-  | { type: OllamaStatus.NoModels }
-  | { type: OllamaStatus.CustomServer };
+export type OllamaModelAvailability =
+  | { status: OllamaStatus.Connected; models: string[] }
+  | { status: OllamaStatus.NotRunning }
+  | { status: OllamaStatus.NoModels }
+  | { status: OllamaStatus.CustomServer };
 
 /**
  * Strips the ":latest" suffix from an Ollama model name for display purposes.
@@ -52,7 +52,7 @@ function makeTimeoutSignal(ms: number): AbortSignal | undefined {
  */
 export async function checkOllamaConnection(
   endpoint: string
-): Promise<OllamaConnectionStatus> {
+): Promise<OllamaModelAvailability> {
   try {
     const response = await fetch(`${endpoint}/api/tags`, {
       signal: makeTimeoutSignal(3000),
@@ -61,9 +61,9 @@ export async function checkOllamaConnection(
       const data = (await response.json()) as OllamaTagsResponse;
       const models = data.models.map(m => m.name);
       if (models.length === 0) {
-        return { type: OllamaStatus.NoModels };
+        return { status: OllamaStatus.NoModels };
       }
-      return { type: OllamaStatus.Connected, models };
+      return { status: OllamaStatus.Connected, models };
     }
   } catch {
     // /api/tags failed — try the OpenAI-compatible probe below
@@ -83,13 +83,13 @@ export async function checkOllamaConnection(
     });
     // Any response (even 4xx) means the server is there and OpenAI-compatible
     if (response.ok || response.status < 500) {
-      return { type: OllamaStatus.CustomServer };
+      return { status: OllamaStatus.CustomServer };
     }
   } catch {
     // Both probes failed
   }
 
-  return { type: OllamaStatus.NotRunning };
+  return { status: OllamaStatus.NotRunning };
 }
 
 /**

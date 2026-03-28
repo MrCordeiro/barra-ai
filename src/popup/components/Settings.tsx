@@ -1,20 +1,6 @@
 import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  FormControl,
-  FormHelperText,
-  FormLabel,
-  Heading,
-  Input,
-  InputGroup,
-  InputRightElement,
-  Link,
-  Text,
-  useToast,
-} from '@chakra-ui/react';
-import { ExternalLinkIcon } from '@chakra-ui/icons';
+import { Box, Button, Heading, Text, useToast } from '@chakra-ui/react';
 import {
   DEFAULT_LLM_MODEL,
   LLM_MODEL_OPTIONS,
@@ -26,10 +12,11 @@ import {
 import { Storage } from '../../storages';
 import {
   DEFAULT_OLLAMA_ENDPOINT,
-  OllamaConnectionStatus,
+  OllamaModelAvailability,
   OllamaStatus,
 } from '../../content/ollama';
 import { ModelSelectField } from './ModelSelectField';
+import { ApiKeyField } from './ApiKeyField';
 
 interface OllamaSettings {
   endpoint: string; // '' = not configured
@@ -58,8 +45,8 @@ interface Props {
 
 async function checkOllamaConn(
   endpoint: string
-): Promise<OllamaConnectionStatus> {
-  const status: OllamaConnectionStatus = await chrome.runtime.sendMessage({
+): Promise<OllamaModelAvailability> {
+  const status: OllamaModelAvailability = await chrome.runtime.sendMessage({
     type: 'ollama:check',
     endpoint,
   });
@@ -72,10 +59,9 @@ const cloudModelValues = new Set<string>(
 
 const Settings = ({ storage, showOnboarding = false }: Props) => {
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
-  const [showKeys, setShowKeys] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [localConnStatus, setLocalConnStatus] =
-    useState<OllamaConnectionStatus | null>(null);
+    useState<OllamaModelAvailability | null>(null);
 
   const toast = useToast();
   const navigate = useNavigate();
@@ -86,7 +72,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     setLocalConnStatus(null);
     checkOllamaConn(endpoint)
       .then(status => setLocalConnStatus(status))
-      .catch(() => setLocalConnStatus({ type: OllamaStatus.NotRunning }));
+      .catch(() => setLocalConnStatus({ status: OllamaStatus.NotRunning }));
   };
 
   useEffect(
@@ -126,10 +112,10 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   );
 
   const isLocalModelStale = (
-    connStatus: OllamaConnectionStatus | null,
+    connStatus: OllamaModelAvailability | null,
     modelName: string
   ) => {
-    if (connStatus?.type !== OllamaStatus.Connected) return false;
+    if (connStatus?.status !== OllamaStatus.Connected) return false;
     if (!modelName) return false;
     return !connStatus.models.includes(modelName);
   };
@@ -147,7 +133,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           console.error(`Error updating stale local model: ${error.message}`);
         });
     },
-    [localConnStatus, settings.modelName, storage]
+    [localConnStatus, settings.modelName, storage, activeModelIsCloud]
   );
 
   const handleApiKeyChange =
@@ -243,20 +229,9 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       });
   };
 
-  const handleShowKeysClick = () => setShowKeys(!showKeys);
-  const inputType = showKeys ? 'text' : 'password';
-
   const selectedProvider = activeModelIsCloud
     ? getProviderForModel(settings.modelName)
     : null;
-
-  const showHideButton = (
-    <InputRightElement width="4.5rem">
-      <Button h="1.75rem" size="xs" onClick={handleShowKeysClick}>
-        {showKeys ? 'Hide' : 'Show'}
-      </Button>
-    </InputRightElement>
-  );
 
   return (
     <>
@@ -283,35 +258,14 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           onConfigureLocalModel={() => navigate('/local-model-config')}
         />
 
-        {activeModelIsCloud &&
-          PROVIDERS.map(
-            provider =>
-              selectedProvider === provider && (
-                <FormControl key={provider} mt={6}>
-                  <FormLabel>
-                    {PROVIDER_CONFIG[provider].label} API Key
-                  </FormLabel>
-                  <InputGroup size="md">
-                    <Input
-                      id={`${provider}-api-key`}
-                      pr="4.5rem"
-                      type={inputType}
-                      value={settings.apiKeys[provider]}
-                      onChange={handleApiKeyChange(provider)}
-                      aria-label={`${PROVIDER_CONFIG[provider].label} API Key`}
-                    />
-                    {showHideButton}
-                  </InputGroup>
-                  <FormHelperText>
-                    {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
-                    <Link href={PROVIDER_CONFIG[provider].helpUrl} isExternal>
-                      {PROVIDER_CONFIG[provider].helpLabel}
-                      <ExternalLinkIcon mx="2px" mb="3px" />
-                    </Link>
-                  </FormHelperText>
-                </FormControl>
-              )
-          )}
+        {selectedProvider && (
+          <ApiKeyField
+            provider={selectedProvider}
+            value={settings.apiKeys[selectedProvider]}
+            showOnboarding={showOnboarding}
+            onChange={handleApiKeyChange(selectedProvider)}
+          />
+        )}
 
         <Button
           type="submit"
