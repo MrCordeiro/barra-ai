@@ -20,37 +20,50 @@ interface Props {
 const Home = ({ hasApiKey = true }: Props) => {
   const [showWarning, setShowWarning] = useState(!hasApiKey);
 
-  useEffect(() => {
-    if (hasApiKey) {
-      setShowWarning(false);
-      return;
-    }
+  useEffect(
+    function checkAndShowWarning() {
+      if (hasApiKey) {
+        setShowWarning(false);
+        return;
+      }
 
-    const apiKeyStorageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
-    const checkStorage = () => {
-      chromeStorage
-        .get(apiKeyStorageKeys)
-        .then(result => {
-          setShowWarning(apiKeyStorageKeys.every(key => !result[key]));
-        })
-        .catch((error: Error) => {
-          console.error(`Error loading settings: ${error.message}`);
-        });
-    };
+      const apiKeyStorageKeys = PROVIDERS.map(
+        p => PROVIDER_CONFIG[p].storageKey
+      );
+      const watchedKeys = [...apiKeyStorageKeys, 'localModelEnabled'];
 
-    checkStorage();
+      const checkStorage = () => {
+        chromeStorage
+          .get(watchedKeys)
+          .then(result => {
+            const localEnabled = result.localModelEnabled === 'true';
+            setShowWarning(
+              !localEnabled && apiKeyStorageKeys.every(key => !result[key])
+            );
+          })
+          .catch((error: Error) => {
+            console.error(`Error loading settings: ${error.message}`);
+          });
+      };
 
-    const handleStorageChange: StorageChangeListener = (changes, areaName) => {
-      if (areaName !== 'local') return;
-      if (apiKeyStorageKeys.every(key => !(key in changes))) return;
       checkStorage();
-    };
 
-    chromeStorage.addChangeListener(handleStorageChange);
-    return () => {
-      chromeStorage.removeChangeListener(handleStorageChange);
-    };
-  }, [hasApiKey]);
+      const handleStorageChange: StorageChangeListener = (
+        changes,
+        areaName
+      ) => {
+        if (areaName !== 'local') return;
+        if (watchedKeys.every(key => !(key in changes))) return;
+        checkStorage();
+      };
+
+      chromeStorage.addChangeListener(handleStorageChange);
+      return () => {
+        chromeStorage.removeChangeListener(handleStorageChange);
+      };
+    },
+    [hasApiKey]
+  );
 
   return (
     <Box
@@ -90,7 +103,11 @@ const Home = ({ hasApiKey = true }: Props) => {
             <Link as={RouterLink} to="/settings" color="orange.500">
               Go to Settings
             </Link>{' '}
-            to get started.
+            to add one — or{' '}
+            <Link as={RouterLink} to="/local-model-gate" color="orange.500">
+              run AI locally, for free
+            </Link>
+            .
           </AlertDescription>
         </Alert>
       )}

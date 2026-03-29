@@ -5,6 +5,7 @@ import Home from './components/Home';
 import NavBar from './components/NavBar';
 import Settings from './components/Settings';
 import LocalModelConfig from './components/LocalModelConfig';
+import LocalModelGate from './components/LocalModelGate';
 import { chromeStorage } from '../storages';
 import { PROVIDER_CONFIG, PROVIDERS } from '../models';
 
@@ -39,6 +40,10 @@ function App() {
         <Route
           path="/local-model-config"
           element={<LocalModelConfig storage={chromeStorage} />}
+        />
+        <Route
+          path="/local-model-gate"
+          element={<LocalModelGate storage={chromeStorage} />}
         />
         {/* Default route */}
         <Route

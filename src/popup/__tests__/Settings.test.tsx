@@ -137,30 +137,49 @@ describe('<Settings />', () => {
     });
   });
 
-  test('navigates to local config when selecting local model without config', async () => {
-    const mockNavigate = jest.fn();
-    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
-    mockOllamaCheck({
-      status: OllamaStatus.Connected,
-      models: ['llama3.2:latest'],
-    });
+  test.each([
+    {
+      localModelGateAcknowledged: undefined,
+      expectedPath: '/local-model-gate',
+      label: 'for first-time selection when gate is not acknowledged',
+    },
+    {
+      localModelGateAcknowledged: 'true',
+      expectedPath: '/local-model-config',
+      label: 'after gate is acknowledged',
+    },
+  ])(
+    'navigates to $expectedPath when selecting local model $label',
+    async ({ localModelGateAcknowledged, expectedPath }) => {
+      const mockNavigate = jest.fn();
+      (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
 
-    await renderSettings();
+      mockStorage.savedData = localModelGateAcknowledged
+        ? { localModelGateAcknowledged }
+        : {};
 
-    await waitFor(() => {
-      expect(screen.getByText('llama3.2')).toBeInTheDocument();
-    });
+      mockOllamaCheck({
+        status: OllamaStatus.Connected,
+        models: ['llama3.2:latest'],
+      });
 
-    fireEvent.change(screen.getByLabelText(/Model Name/i), {
-      target: { value: 'llama3.2:latest' },
-    });
+      await renderSettings();
 
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/local-model-config');
-    });
-  });
+      await waitFor(() => {
+        expect(screen.getByText('llama3.2')).toBeInTheDocument();
+      });
 
-  test('selecting configured local model persists local selection and shows one-time notice', async () => {
+      fireEvent.change(screen.getByLabelText(/Model Name/i), {
+        target: { value: 'llama3.2:latest' },
+      });
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(expectedPath);
+      });
+    }
+  );
+
+  test('selecting configured local model persists local selection', async () => {
     const mockToast = jest.fn();
     (useToast as jest.Mock).mockReturnValue(mockToast);
 
@@ -168,7 +187,6 @@ describe('<Settings />', () => {
       localModelEndpoint: 'http://localhost:11434',
       localModelName: 'mistral:latest',
       modelName: anthropicModel,
-      ollamaNoticeShown: 'false',
     };
 
     mockOllamaCheck({
@@ -189,14 +207,7 @@ describe('<Settings />', () => {
     await waitFor(() => {
       expect(mockStorage.savedData?.modelName).toBe('llama3.2:latest');
       expect(mockStorage.savedData?.localModelName).toBe('llama3.2:latest');
-      expect(mockStorage.savedData?.ollamaNoticeShown).toBe('true');
     });
-
-    expect(mockToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'info',
-      })
-    );
   });
 
   test('shows local connected status line when a local model is selected', async () => {
@@ -204,7 +215,6 @@ describe('<Settings />', () => {
       localModelEndpoint: 'http://localhost:11434',
       localModelName: 'llama3.2:latest',
       modelName: 'llama3.2:latest',
-      ollamaNoticeShown: 'true',
     };
     mockOllamaCheck({
       status: OllamaStatus.Connected,

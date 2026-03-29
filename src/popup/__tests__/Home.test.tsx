@@ -35,20 +35,24 @@ describe('<Home />', () => {
     jest.clearAllMocks();
   });
 
-  test('should render correctly', () => {
+  test('should render correctly', async () => {
     render(<Home />);
 
-    const headingElement = screen.getByText(/Raawr!! 🦖 Barrasaur is live!/i);
-    expect(headingElement).toBeInTheDocument();
+    await waitFor(() => {
+      const headingElement = screen.getByText(/Raawr!! 🦖 Barrasaur is live!/i);
+      expect(headingElement).toBeInTheDocument();
+    });
   });
 
-  test('shows a warning and settings link when no API key is set', () => {
+  test('shows a warning and settings link when no API key is set', async () => {
     render(<Home hasApiKey={false} />);
 
-    expect(screen.getByText(/No API key set/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: /Go to Settings/i })
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/No API key set/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: /Go to Settings/i })
+      ).toBeInTheDocument();
+    });
   });
 
   test('hides warning when storage already has an API key', async () => {

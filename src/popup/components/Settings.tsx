@@ -20,7 +20,6 @@ import { ApiKeyField } from './ApiKeyField';
 
 interface OllamaSettings {
   endpoint: string; // '' = not configured
-  noticeShown: boolean;
 }
 
 interface SettingsState {
@@ -35,7 +34,7 @@ const defaultSettings: SettingsState = {
     string
   >,
   modelName: DEFAULT_LLM_MODEL.value,
-  ollama: { endpoint: '', noticeShown: false },
+  ollama: { endpoint: '' },
 };
 
 interface Props {
@@ -62,6 +61,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [localConnStatus, setLocalConnStatus] =
     useState<OllamaModelAvailability | null>(null);
+  const [gateAcknowledged, setGateAcknowledged] = useState(false);
 
   const toast = useToast();
   const navigate = useNavigate();
@@ -83,7 +83,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           ...storageKeys,
           'modelName',
           'localModelEndpoint',
-          'ollamaNoticeShown',
+          'localModelGateAcknowledged',
         ])
         .then(result => {
           const normalizedApiKeys = Object.fromEntries(
@@ -97,9 +97,9 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             modelName: result.modelName || defaultSettings.modelName,
             ollama: {
               endpoint: ollamaEndpoint,
-              noticeShown: result.ollamaNoticeShown === 'true',
             },
           });
+          setGateAcknowledged(result.localModelGateAcknowledged === 'true');
           setIsFormDirty(false);
 
           refreshOllamaStatus(ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT);
@@ -177,6 +177,10 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     }
 
     // Selecting a local model requires local setup first.
+    if (!settings.ollama.endpoint && !gateAcknowledged) {
+      navigate('/local-model-gate');
+      return;
+    }
     if (!settings.ollama.endpoint) {
       navigate('/local-model-config');
       return;
@@ -184,24 +188,6 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
 
     setSettings(prev => ({ ...prev, modelName: nextModel }));
     persistSelectedModel(nextModel, nextModel);
-
-    if (!settings.ollama.noticeShown) {
-      toast({
-        status: 'info',
-        title:
-          'Runs on your machine via Ollama. May be slower or less accurate.',
-        variant: 'top-accent',
-        isClosable: true,
-        duration: 5000,
-      });
-      setSettings(prev => ({
-        ...prev,
-        ollama: { ...prev.ollama, noticeShown: true },
-      }));
-      storage.set({ ollamaNoticeShown: 'true' }).catch((error: Error) => {
-        console.error(`Error saving Ollama notice state: ${error.message}`);
-      });
-    }
   };
 
   const saveSettings = (e: FormEvent<HTMLFormElement>) => {

@@ -7,8 +7,6 @@ import {
   useCallback,
 } from 'react';
 import {
-  Alert,
-  AlertIcon,
   Box,
   Button,
   FormControl,
@@ -16,7 +14,9 @@ import {
   FormHelperText,
   Heading,
   Input,
+  Link,
   Select,
+  Spinner,
   Text,
 } from '@chakra-ui/react';
 import {
@@ -26,6 +26,7 @@ import {
   OllamaStatus,
 } from '../../content/ollama';
 import { Storage } from '../../storages';
+import { ExternalLinkIcon } from '@chakra-ui/icons';
 
 interface Props {
   storage: Storage;
@@ -184,11 +185,6 @@ const LocalModelConfig = ({ storage }: Props) => {
         Local Model Setup
       </Heading>
 
-      <Text fontSize="sm" mb={4} color="gray.600">
-        Run models on your machine via Ollama. You need Ollama installed and
-        running.
-      </Text>
-
       <FormControl isInvalid={!!endpointError} mb={4}>
         <FormLabel>Endpoint</FormLabel>
         <Input
@@ -247,12 +243,6 @@ const LocalModelConfig = ({ storage }: Props) => {
           </Select>
         )}
       </FormControl>
-
-      <Alert status="warning" mt={6} borderRadius="md" fontSize="sm">
-        <AlertIcon />
-        Local models vary in quality. Responses may be slower or less accurate
-        than cloud models.
-      </Alert>
     </Box>
   );
 };
@@ -270,9 +260,12 @@ function ConnectionStatusDisplay({
 }: StatusProps) {
   if (isChecking || modelAvailability === null) {
     return (
-      <Text fontSize="sm" color="gray.500">
-        Checking connection…
-      </Text>
+      <Box display="flex" alignItems="center" gap={2}>
+        <Spinner size="xs" color="gray.500" />
+        <Text fontSize="sm" color="gray.500">
+          Checking connection…
+        </Text>
+      </Box>
     );
   }
 
@@ -314,16 +307,24 @@ function ConnectionStatusDisplay({
               ollama serve
             </Text>
           </Text>
-          <Button size="xs" mt={2} onClick={onCheckAgain}>
-            Check again
-          </Button>
+          {/* Button and link must be vertically centered */}
+          <Box mt={2} display="flex" alignItems="center">
+            <Button size="xs" onClick={onCheckAgain}>
+              Check again
+            </Button>
+            <Link
+              href="https://ollama.ai"
+              ml={4}
+              isExternal
+              fontSize="xs"
+              color="blue.500"
+            >
+              Get Ollama <ExternalLinkIcon mx="2px" />
+            </Link>
+          </Box>
         </Box>
       );
   }
 }
 
 export default LocalModelConfig;
-
-// FIXME - Back arrow overlaps with title
-// FIXME - Background "ends" when error message appears, leaving a blank area below it
-// TODO - Add loading indicator when checking connection

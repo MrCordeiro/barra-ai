@@ -1,30 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
-import { Storage } from '../../storages';
 import LocalModelConfig from '../components/LocalModelConfig';
 import { OllamaModelAvailability, OllamaStatus } from '../../content/ollama';
+import { createMockStorage } from '../__mocks__/storage';
 
-const mockStorage: Storage & { savedData?: Record<string, string> } = {
-  savedData: {},
-  get: keys => {
-    return new Promise(resolve => {
-      const data = mockStorage.savedData ?? {};
-      if (!keys) return resolve(data);
-      const result: Record<string, string> = {};
-      (Array.isArray(keys) ? keys : [keys]).forEach(key => {
-        if (key in data) result[key] = data[key];
-      });
-      resolve(result);
-    });
-  },
-  set: items => {
-    return new Promise(resolve => {
-      mockStorage.savedData = { ...(mockStorage.savedData ?? {}), ...items };
-      resolve();
-    });
-  },
-  addChangeListener: jest.fn(),
-  removeChangeListener: jest.fn(),
-};
+const mockStorage = createMockStorage();
 
 /** Set what the background connection check will return. */
 function mockCheck(status: OllamaModelAvailability) {
@@ -261,14 +240,6 @@ describe('<LocalModelConfig />', () => {
     await waitFor(() => {
       expect(chrome.runtime.sendMessage).toHaveBeenCalledTimes(2);
     });
-  });
-
-  test('quality warning alert is always shown', async () => {
-    await renderLocalModelConfig();
-
-    expect(
-      screen.getByText(/Local models vary in quality/)
-    ).toBeInTheDocument();
   });
 
   test('routes connection check through background (sends ollama:check message)', async () => {
