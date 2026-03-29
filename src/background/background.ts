@@ -4,6 +4,7 @@ import { triggerNotification, Priority } from './notifications';
 import { handleInferencePort, updateCorsRule } from './inference';
 import { checkOllamaConnection, OllamaStatus } from '../content/ollama';
 import { chromeStorage } from '../storages';
+import { MODEL_STORAGE_KEYS } from '../storageKeys';
 
 interface ApiErrorRequest {
   type: 'API_ERROR';
@@ -18,11 +19,7 @@ interface OllamaCheckRequest {
 type BackgroundRequest = ApiErrorRequest | OllamaCheckRequest;
 
 chromeStorage.addChangeListener(function syncCorsRulesOnChange(changes) {
-  if (
-    'modelName' in changes ||
-    'localModelName' in changes ||
-    'localModelEndpoint' in changes
-  ) {
+  if (MODEL_STORAGE_KEYS.some(key => key in changes)) {
     void updateCorsRule();
   }
 });

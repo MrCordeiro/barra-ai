@@ -27,6 +27,7 @@ import {
 } from '../../content/ollama';
 import { Storage } from '../../storages';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
+import { STORAGE_KEYS as SK } from '../../storageKeys';
 
 interface Props {
   storage: Storage;
@@ -75,7 +76,7 @@ const LocalModelConfig = ({ storage }: Props) => {
           const model = modelAvailability.models[0];
           resolvedSelectedModel = model;
           setSelectedModel(model);
-          await storage.set({ localModelName: model });
+          await storage.set({ [SK.LOCAL_MODEL_CACHED]: model });
         }
         // If previously selected model is no longer in the list, clear it
         if (
@@ -84,7 +85,7 @@ const LocalModelConfig = ({ storage }: Props) => {
           !modelAvailability.models.includes(resolvedSelectedModel)
         ) {
           setSelectedModel('');
-          await storage.set({ localModelName: '' });
+          await storage.set({ [SK.LOCAL_MODEL_CACHED]: '' });
         }
       } catch {
         setConnectionStatus({ status: OllamaStatus.NotRunning });
@@ -98,12 +99,12 @@ const LocalModelConfig = ({ storage }: Props) => {
   useEffect(
     function loadAndCheckConfig() {
       storage
-        .get(['localModelEndpoint', 'localModelName'])
+        .get([SK.LOCAL_MODEL_ENDPOINT, SK.LOCAL_MODEL_CACHED])
         .then(result => {
           const savedEndpoint =
-            normalizeLocalEndpoint(result.localModelEndpoint ?? '') ??
+            normalizeLocalEndpoint(result[SK.LOCAL_MODEL_ENDPOINT] ?? '') ??
             DEFAULT_OLLAMA_ENDPOINT;
-          const savedModel = result.localModelName || '';
+          const savedModel = result[SK.LOCAL_MODEL_CACHED] || '';
           setEndpoint(savedEndpoint);
           setSelectedModel(savedModel);
           void runConnectionCheck(savedEndpoint, savedModel);
@@ -147,7 +148,10 @@ const LocalModelConfig = ({ storage }: Props) => {
   }
 
   async function saveAndCheck(url: string, model: string) {
-    await storage.set({ localModelEndpoint: url, localModelName: model });
+    await storage.set({
+      [SK.LOCAL_MODEL_ENDPOINT]: url,
+      [SK.LOCAL_MODEL_CACHED]: model,
+    });
     await runConnectionCheck(url, model);
   }
 
@@ -155,7 +159,10 @@ const LocalModelConfig = ({ storage }: Props) => {
     const model = e.target.value;
     setSelectedModel(model);
     storage
-      .set({ localModelEndpoint: endpoint, localModelName: model })
+      .set({
+        [SK.LOCAL_MODEL_ENDPOINT]: endpoint,
+        [SK.LOCAL_MODEL_CACHED]: model,
+      })
       .catch((error: Error) => {
         console.error(`Error saving model: ${error.message}`);
       });
@@ -216,8 +223,8 @@ const LocalModelConfig = ({ storage }: Props) => {
               setSelectedModel(e.target.value);
               storage
                 .set({
-                  localModelEndpoint: endpoint,
-                  localModelName: e.target.value,
+                  [SK.LOCAL_MODEL_ENDPOINT]: endpoint,
+                  [SK.LOCAL_MODEL_CACHED]: e.target.value,
                 })
                 .catch((error: Error) => {
                   console.error(`Error saving model: ${error.message}`);

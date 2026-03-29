@@ -15,6 +15,7 @@ import {
   OllamaModelAvailability,
   OllamaStatus,
 } from '../../content/ollama';
+import { STORAGE_KEYS as SK } from '../../storageKeys';
 import { ModelSelectField } from './ModelSelectField';
 import { ApiKeyField } from './ApiKeyField';
 
@@ -81,25 +82,27 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       storage
         .get([
           ...storageKeys,
-          'modelName',
-          'localModelEndpoint',
-          'localModelGateAcknowledged',
+          SK.MODEL_NAME,
+          SK.LOCAL_MODEL_ENDPOINT,
+          SK.LOCAL_MODEL_GATE_ACKNOWLEDGED,
         ])
         .then(result => {
           const normalizedApiKeys = Object.fromEntries(
             PROVIDERS.map(p => [p, result[PROVIDER_CONFIG[p].storageKey] ?? ''])
           ) as Record<Provider, string>;
 
-          const ollamaEndpoint = result.localModelEndpoint || '';
+          const ollamaEndpoint = result[SK.LOCAL_MODEL_ENDPOINT] || '';
 
           setSettings({
             apiKeys: normalizedApiKeys,
-            modelName: result.modelName || defaultSettings.modelName,
+            modelName: result[SK.MODEL_NAME] || defaultSettings.modelName,
             ollama: {
               endpoint: ollamaEndpoint,
             },
           });
-          setGateAcknowledged(result.localModelGateAcknowledged === 'true');
+          setGateAcknowledged(
+            result[SK.LOCAL_MODEL_GATE_ACKNOWLEDGED] === 'true'
+          );
           setIsFormDirty(false);
 
           refreshOllamaStatus(ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT);
@@ -128,7 +131,10 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       // The active local model is no longer available in Ollama.
       setSettings(prev => ({ ...prev, modelName: DEFAULT_LLM_MODEL.value }));
       storage
-        .set({ modelName: DEFAULT_LLM_MODEL.value, localModelName: '' })
+        .set({
+          [SK.MODEL_NAME]: DEFAULT_LLM_MODEL.value,
+          [SK.LOCAL_MODEL_CACHED]: '',
+        })
         .catch((error: Error) => {
           console.error(`Error updating stale local model: ${error.message}`);
         });
@@ -150,12 +156,13 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     selectedLocalModel?: string
   ) => {
     const payload: Record<string, string> = {
-      modelName,
-      localModelEndpoint: settings.ollama.endpoint || DEFAULT_OLLAMA_ENDPOINT,
+      [SK.MODEL_NAME]: modelName,
+      [SK.LOCAL_MODEL_ENDPOINT]:
+        settings.ollama.endpoint || DEFAULT_OLLAMA_ENDPOINT,
     };
 
     if (selectedLocalModel) {
-      payload.localModelName = selectedLocalModel;
+      payload[SK.LOCAL_MODEL_CACHED] = selectedLocalModel;
     }
 
     storage.set(payload).catch((error: Error) => {

@@ -3,6 +3,7 @@
 import { fetchAIResponse } from '../content/ai';
 import { chromeStorage } from '../storages';
 import { DEFAULT_OLLAMA_ENDPOINT } from '../content/ollama';
+import { MODEL_STORAGE_KEYS, STORAGE_KEYS as SK } from '../storageKeys';
 
 export interface ChunkMessage {
   type: 'chunk';
@@ -103,15 +104,12 @@ async function runInference(
  * active and removed when it is not.
  */
 export async function updateCorsRule(): Promise<void> {
-  const stored = await chromeStorage.get([
-    'modelName',
-    'localModelName',
-    'localModelEndpoint',
-  ]);
+  const stored = await chromeStorage.get([...MODEL_STORAGE_KEYS]);
   const enabled =
-    !!stored.localModelName && stored.modelName === stored.localModelName;
+    !!stored[SK.LOCAL_MODEL_CACHED] &&
+    stored[SK.MODEL_NAME] === stored[SK.LOCAL_MODEL_CACHED];
   const endpoint = normalizeEndpointOrigin(
-    stored.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT
+    stored[SK.LOCAL_MODEL_ENDPOINT] || DEFAULT_OLLAMA_ENDPOINT
   );
 
   if (enabled) {

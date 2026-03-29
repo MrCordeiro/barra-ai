@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import LocalModelConfig from '../components/LocalModelConfig';
 import { OllamaModelAvailability, OllamaStatus } from '../../content/ollama';
 import { createMockStorage } from '../__mocks__/storage';
+import { STORAGE_KEYS } from '../../storageKeys';
 
 const mockStorage = createMockStorage();
 
@@ -145,8 +146,8 @@ describe('<LocalModelConfig />', () => {
 
   test('loads and normalizes saved endpoint from storage', async () => {
     mockStorage.savedData = {
-      localModelEndpoint: 'http://localhost:11434/v1',
-      localModelName: 'mistral:latest',
+      [STORAGE_KEYS.LOCAL_MODEL_ENDPOINT]: 'http://localhost:11434/v1',
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'mistral:latest',
     };
 
     await renderLocalModelConfig();
@@ -169,7 +170,7 @@ describe('<LocalModelConfig />', () => {
     fireEvent.blur(endpointInput);
 
     await waitFor(() => {
-      expect(mockStorage.savedData?.localModelEndpoint).toBe(
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_ENDPOINT]).toBe(
         'http://127.0.0.1:11434'
       );
     });
@@ -184,14 +185,16 @@ describe('<LocalModelConfig />', () => {
     await renderLocalModelConfig();
 
     await waitFor(() => {
-      expect(mockStorage.savedData?.localModelName).toBe('llama3.2:latest');
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_CACHED]).toBe(
+        'llama3.2:latest'
+      );
     });
   });
 
   test('clears stale selected model from storage when unavailable', async () => {
     mockStorage.savedData = {
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'stale:model',
+      [STORAGE_KEYS.LOCAL_MODEL_ENDPOINT]: 'http://localhost:11434',
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'stale:model',
     };
     mockCheck({
       status: OllamaStatus.Connected,
@@ -201,7 +204,7 @@ describe('<LocalModelConfig />', () => {
     await renderLocalModelConfig();
 
     await waitFor(() => {
-      expect(mockStorage.savedData?.localModelName).toBe('');
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_CACHED]).toBe('');
     });
   });
 
@@ -216,7 +219,9 @@ describe('<LocalModelConfig />', () => {
     fireEvent.change(select, { target: { value: 'mistral:latest' } });
 
     await waitFor(() => {
-      expect(mockStorage.savedData?.localModelName).toBe('mistral:latest');
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_CACHED]).toBe(
+        'mistral:latest'
+      );
     });
   });
 

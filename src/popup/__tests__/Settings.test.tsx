@@ -5,6 +5,7 @@ import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
 import { Storage } from '../../storages';
 import { OllamaModelAvailability, OllamaStatus } from '../../content/ollama';
 import Settings from '../components/Settings';
+import { STORAGE_KEYS } from '../../storageKeys';
 
 /**
  * A mock storage object that saves data in memory
@@ -124,7 +125,9 @@ describe('<Settings />', () => {
   });
 
   test('changes selected cloud model and persists immediately', async () => {
-    mockStorage.savedData = { localModelName: 'llama3.2:latest' };
+    mockStorage.savedData = {
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'llama3.2:latest',
+    };
     await renderSettings();
 
     fireEvent.change(screen.getByLabelText(/Model Name/i), {
@@ -132,8 +135,12 @@ describe('<Settings />', () => {
     });
 
     await waitFor(() => {
-      expect(mockStorage.savedData?.modelName).toBe(openAIModel);
-      expect(mockStorage.savedData?.localModelName).toBe('llama3.2:latest');
+      expect(mockStorage.savedData?.[STORAGE_KEYS.MODEL_NAME]).toBe(
+        openAIModel
+      );
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_CACHED]).toBe(
+        'llama3.2:latest'
+      );
     });
   });
 
@@ -155,7 +162,10 @@ describe('<Settings />', () => {
       (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
 
       mockStorage.savedData = localModelGateAcknowledged
-        ? { localModelGateAcknowledged }
+        ? {
+            [STORAGE_KEYS.LOCAL_MODEL_GATE_ACKNOWLEDGED]:
+              localModelGateAcknowledged,
+          }
         : {};
 
       mockOllamaCheck({
@@ -184,9 +194,9 @@ describe('<Settings />', () => {
     (useToast as jest.Mock).mockReturnValue(mockToast);
 
     mockStorage.savedData = {
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'mistral:latest',
-      modelName: anthropicModel,
+      [STORAGE_KEYS.LOCAL_MODEL_ENDPOINT]: 'http://localhost:11434',
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'mistral:latest',
+      [STORAGE_KEYS.MODEL_NAME]: anthropicModel,
     };
 
     mockOllamaCheck({
@@ -205,16 +215,20 @@ describe('<Settings />', () => {
     });
 
     await waitFor(() => {
-      expect(mockStorage.savedData?.modelName).toBe('llama3.2:latest');
-      expect(mockStorage.savedData?.localModelName).toBe('llama3.2:latest');
+      expect(mockStorage.savedData?.[STORAGE_KEYS.MODEL_NAME]).toBe(
+        'llama3.2:latest'
+      );
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_CACHED]).toBe(
+        'llama3.2:latest'
+      );
     });
   });
 
   test('shows local connected status line when a local model is selected', async () => {
     mockStorage.savedData = {
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
-      modelName: 'llama3.2:latest',
+      [STORAGE_KEYS.LOCAL_MODEL_ENDPOINT]: 'http://localhost:11434',
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'llama3.2:latest',
+      [STORAGE_KEYS.MODEL_NAME]: 'llama3.2:latest',
     };
     mockOllamaCheck({
       status: OllamaStatus.Connected,
@@ -235,9 +249,9 @@ describe('<Settings />', () => {
 
   test('falls back to default cloud model when selected local model disappears', async () => {
     mockStorage.savedData = {
-      localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
-      modelName: 'llama3.2:latest',
+      [STORAGE_KEYS.LOCAL_MODEL_ENDPOINT]: 'http://localhost:11434',
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'llama3.2:latest',
+      [STORAGE_KEYS.MODEL_NAME]: 'llama3.2:latest',
     };
     mockOllamaCheck({
       status: OllamaStatus.Connected,
@@ -247,8 +261,10 @@ describe('<Settings />', () => {
     await renderSettings();
 
     await waitFor(() => {
-      expect(mockStorage.savedData?.modelName).toBe(DEFAULT_LLM_MODEL.value);
-      expect(mockStorage.savedData?.localModelName).toBe('');
+      expect(mockStorage.savedData?.[STORAGE_KEYS.MODEL_NAME]).toBe(
+        DEFAULT_LLM_MODEL.value
+      );
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_CACHED]).toBe('');
     });
   });
 
@@ -270,7 +286,7 @@ describe('<Settings />', () => {
 
     await waitFor(() => {
       expect(mockStorage.savedData).toMatchObject({
-        anthropicApiKey: 'my-anthropic-key',
+        [STORAGE_KEYS.ANTHROPIC_API_KEY]: 'my-anthropic-key',
       });
     });
 

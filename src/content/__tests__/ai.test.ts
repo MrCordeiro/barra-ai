@@ -51,7 +51,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     modelName: string,
     localSettings?: {
       localModelEndpoint?: string;
-      localModelName?: string;
+      localModelCached?: string;
       openaiApiKey?: string;
       anthropicApiKey?: string;
       geminiApiKey?: string;
@@ -62,7 +62,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
         get: jest.fn().mockResolvedValue({
           modelName,
           localModelEndpoint: localSettings?.localModelEndpoint ?? '',
-          localModelName: localSettings?.localModelName ?? '',
+          localModelCached: localSettings?.localModelCached ?? '',
           openaiApiKey: localSettings?.openaiApiKey ?? '',
           anthropicApiKey: localSettings?.anthropicApiKey ?? '',
           geminiApiKey: localSettings?.geminiApiKey ?? '',
@@ -152,7 +152,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     mockFetchOllamaResponse.mockResolvedValue('ollama response');
     const { fetchAIResponse } = await loadModule('llama3.2:latest', {
       localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
+      localModelCached: 'llama3.2:latest',
     });
     const onChunk = jest.fn();
 
@@ -172,7 +172,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     mockFetchOllamaResponse.mockResolvedValue('ollama response');
     const { fetchAIResponse } = await loadModule('mistral:latest', {
       localModelEndpoint: '',
-      localModelName: 'mistral:latest',
+      localModelCached: 'mistral:latest',
     });
 
     await fetchAIResponse('test prompt');
@@ -190,7 +190,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     const { fetchAIResponse } = await loadModule('gpt-4o', {
       openaiApiKey: 'sk-test',
       localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'llama3.2:latest',
+      localModelCached: 'llama3.2:latest',
     });
 
     await fetchAIResponse('test prompt');
@@ -204,7 +204,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     const { fetchAIResponse } = await loadModule('gpt-4o', {
       openaiApiKey: '',
       localModelEndpoint: 'http://localhost:11434',
-      localModelName: 'mistral:latest',
+      localModelCached: 'mistral:latest',
     });
 
     await fetchAIResponse('test prompt');

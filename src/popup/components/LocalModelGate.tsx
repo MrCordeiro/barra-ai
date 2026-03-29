@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Heading, HStack, Text, VStack } from '@chakra-ui/react';
 import { Storage } from '../../storages';
+import { STORAGE_KEYS } from '../../storageKeys';
 
 interface Props {
   storage: Storage;
@@ -12,8 +13,8 @@ const LocalModelGate = ({ storage }: Props) => {
   const handleSetItUp = () => {
     storage
       .set({
-        localModelGateAcknowledged: 'true',
-        localModelEnabled: 'true',
+        [STORAGE_KEYS.LOCAL_MODEL_GATE_ACKNOWLEDGED]: 'true',
+        [STORAGE_KEYS.LOCAL_MODEL_ENABLED]: 'true',
       })
       .then(() => {
         navigate('/local-model-config');

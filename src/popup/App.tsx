@@ -6,8 +6,9 @@ import NavBar from './components/NavBar';
 import Settings from './components/Settings';
 import LocalModelConfig from './components/LocalModelConfig';
 import LocalModelGate from './components/LocalModelGate';
-import { chromeStorage } from '../storages';
 import { PROVIDER_CONFIG, PROVIDERS } from '../models';
+import { chromeStorage } from '../storages';
+import { PROVIDER_API_KEYS, STORAGE_KEYS } from '../storageKeys';
 
 function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -16,10 +17,16 @@ function App() {
   useEffect(() => {
     const apiKeyStorageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
     chromeStorage
-      .get([...apiKeyStorageKeys, 'modelName', 'localModelName'])
+      .get([
+        ...PROVIDER_API_KEYS,
+        STORAGE_KEYS.MODEL_NAME,
+        STORAGE_KEYS.LOCAL_MODEL_CACHED,
+      ])
       .then(result => {
         const localSelected =
-          !!result.localModelName && result.modelName === result.localModelName;
+          !!result[STORAGE_KEYS.LOCAL_MODEL_CACHED] &&
+          result[STORAGE_KEYS.MODEL_NAME] ===
+            result[STORAGE_KEYS.LOCAL_MODEL_CACHED];
         if (!localSelected && apiKeyStorageKeys.every(key => !result[key]))
           setShowOnboarding(true);
       })

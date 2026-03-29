@@ -12,6 +12,11 @@ import { fetchGptResponse } from './openai';
 import { fetchAnthropicResponse } from './anthropic';
 import { fetchGeminiResponse } from './gemini';
 import { fetchOllamaResponse, DEFAULT_OLLAMA_ENDPOINT } from './ollama';
+import {
+  MODEL_STORAGE_KEYS,
+  PROVIDER_API_KEYS,
+  STORAGE_KEYS as SK,
+} from '../storageKeys';
 
 export const USE_MOCK = /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK ?? '');
 
@@ -53,33 +58,29 @@ export async function fetchAIResponse(
   }
 
   const stored = await chromeStorage.get([
-    'modelName',
-    'localModelEndpoint',
-    'localModelName',
-    PROVIDER_CONFIG.openai.storageKey,
-    PROVIDER_CONFIG.anthropic.storageKey,
-    PROVIDER_CONFIG.gemini.storageKey,
+    ...MODEL_STORAGE_KEYS,
+    ...PROVIDER_API_KEYS,
   ]);
 
-  const resolvedModel = stored.modelName || DEFAULT_LLM_MODEL.value;
+  const resolvedModel = stored[SK.MODEL_NAME] || DEFAULT_LLM_MODEL.value;
   const knownCloudModels = new Set<string>(
     LLM_MODEL_OPTIONS.map(model => model.value)
   );
   const localModelIsSelected =
-    !!stored.localModelName &&
-    (resolvedModel === stored.localModelName ||
+    !!stored[SK.LOCAL_MODEL_CACHED] &&
+    (resolvedModel === stored[SK.LOCAL_MODEL_CACHED] ||
       !knownCloudModels.has(resolvedModel));
 
   if (localModelIsSelected) {
-    const endpoint = stored.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT;
-    if (!stored.localModelName) {
+    const endpoint = stored[SK.LOCAL_MODEL_ENDPOINT] || DEFAULT_OLLAMA_ENDPOINT;
+    if (!stored[SK.LOCAL_MODEL_CACHED]) {
       throw new Error(
         'No local model selected. Please open settings and choose a model.'
       );
     }
     return fetchOllamaResponse(
       prompt,
-      stored.localModelName,
+      stored[SK.LOCAL_MODEL_CACHED],
       endpoint,
       onChunk
     );
@@ -89,11 +90,11 @@ export async function fetchAIResponse(
   const providerApiKey = stored[PROVIDER_CONFIG[provider].storageKey];
 
   // If cloud credentials are missing, prefer local as a runtime fallback.
-  if (!providerApiKey && stored.localModelName) {
+  if (!providerApiKey && stored[SK.LOCAL_MODEL_CACHED]) {
     return fetchOllamaResponse(
       prompt,
-      stored.localModelName,
-      stored.localModelEndpoint || DEFAULT_OLLAMA_ENDPOINT,
+      stored[SK.LOCAL_MODEL_CACHED],
+      stored[SK.LOCAL_MODEL_ENDPOINT] || DEFAULT_OLLAMA_ENDPOINT,
       onChunk
     );
   }

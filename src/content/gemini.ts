@@ -3,6 +3,7 @@
 import { Storage, chromeStorage } from '../storages';
 import { extractErrorMessage } from './providerError';
 import { parseSSEStream } from './sseParser';
+import { STORAGE_KEYS } from '../storageKeys';
 
 interface GeminiStreamChunk {
   candidates?: {
@@ -56,7 +57,9 @@ export async function fetchGeminiResponse(
 }
 
 async function getSettings(storage: Storage) {
-  const { geminiApiKey } = await storage.get(['geminiApiKey']);
+  const { [STORAGE_KEYS.GEMINI_API_KEY]: geminiApiKey } = await storage.get([
+    STORAGE_KEYS.GEMINI_API_KEY,
+  ]);
   if (!geminiApiKey) {
     throw new Error(
       'Gemini API Key is not set. Please go to the settings page to set it.'

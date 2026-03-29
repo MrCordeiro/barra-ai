@@ -24,7 +24,7 @@ type InferenceModule = typeof import('../inference');
 
 interface InferenceStorageValues {
   modelName: string;
-  localModelName: string;
+  localModelCached: string;
   localModelEndpoint: string;
 }
 
@@ -69,7 +69,7 @@ describe('handleInferencePort', () => {
       fetchAIResponseMock: mockFetchAIResponse,
       storageValues: {
         modelName: 'gpt-4o-mini',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: '',
       },
     });
@@ -91,7 +91,7 @@ describe('handleInferencePort', () => {
       fetchAIResponseMock: mockFetchAIResponse,
       storageValues: {
         modelName: 'gpt-4o-mini',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: '',
       },
     });
@@ -114,7 +114,7 @@ describe('handleInferencePort', () => {
       fetchAIResponseMock: mockFetchAIResponse,
       storageValues: {
         modelName: 'gpt-4o-mini',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: '',
       },
     });
@@ -139,7 +139,7 @@ describe('handleInferencePort', () => {
       fetchAIResponseMock: mockFetchAIResponse,
       storageValues: {
         modelName: 'gpt-4o-mini',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: '',
       },
     });
@@ -161,7 +161,7 @@ describe('handleInferencePort', () => {
       fetchAIResponseMock: mockFetchAIResponse,
       storageValues: {
         modelName: 'gpt-4o-mini',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: '',
       },
     });
@@ -181,7 +181,7 @@ describe('handleInferencePort', () => {
       fetchAIResponseMock: mockFetchAIResponse,
       storageValues: {
         modelName: 'gpt-4o-mini',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: '',
       },
     });
@@ -202,7 +202,7 @@ describe('handleInferencePort', () => {
       fetchAIResponseMock: mockFetchAIResponse,
       storageValues: {
         modelName: 'gpt-4o-mini',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: '',
       },
     });
@@ -264,7 +264,7 @@ describe('updateCorsRule', () => {
     const { updateCorsRule } = await loadInferenceModule({
       storageValues: {
         modelName: 'llama3.2:latest',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: 'http://localhost:11435',
       },
     });
@@ -277,7 +277,7 @@ describe('updateCorsRule', () => {
     const { updateCorsRule } = await loadInferenceModule({
       storageValues: {
         modelName: 'llama3.2:latest',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: 'http://localhost:11434/v1/',
       },
     });
@@ -290,7 +290,7 @@ describe('updateCorsRule', () => {
     const { updateCorsRule } = await loadInferenceModule({
       storageValues: {
         modelName: 'gpt-4o-mini',
-        localModelName: 'llama3.2:latest',
+        localModelCached: 'llama3.2:latest',
         localModelEndpoint: 'http://localhost:11434',
       },
     });

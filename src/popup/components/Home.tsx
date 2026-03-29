@@ -12,6 +12,7 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import { chromeStorage, type StorageChangeListener } from '../../storages';
 import { PROVIDER_CONFIG, PROVIDERS } from '../../models';
+import { STORAGE_KEYS } from '../../storageKeys';
 
 interface Props {
   hasApiKey?: boolean;
@@ -30,13 +31,17 @@ const Home = ({ hasApiKey = true }: Props) => {
       const apiKeyStorageKeys = PROVIDERS.map(
         p => PROVIDER_CONFIG[p].storageKey
       );
-      const watchedKeys = [...apiKeyStorageKeys, 'localModelEnabled'];
+      const watchedKeys = [
+        ...apiKeyStorageKeys,
+        STORAGE_KEYS.LOCAL_MODEL_ENABLED,
+      ];
 
       const checkStorage = () => {
         chromeStorage
           .get(watchedKeys)
           .then(result => {
-            const localEnabled = result.localModelEnabled === 'true';
+            const localEnabled =
+              result[STORAGE_KEYS.LOCAL_MODEL_ENABLED] === 'true';
             setShowWarning(
               !localEnabled && apiKeyStorageKeys.every(key => !result[key])
             );

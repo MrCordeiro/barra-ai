@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import LocalModelGate from '../components/LocalModelGate';
 import { fireEvent, render, screen, waitFor } from '../../../jest/test-utils';
 import { createMockStorage } from '../__mocks__/storage';
+import { STORAGE_KEYS } from '../../storageKeys';
 
 const mockStorage = createMockStorage();
 
@@ -32,8 +33,8 @@ describe('LocalModelGate', () => {
     await waitFor(() => {
       expect(mockStorage.set).toHaveBeenCalledTimes(1);
       expect(mockStorage.set).toHaveBeenCalledWith({
-        localModelGateAcknowledged: 'true',
-        localModelEnabled: 'true',
+        [STORAGE_KEYS.LOCAL_MODEL_GATE_ACKNOWLEDGED]: 'true',
+        [STORAGE_KEYS.LOCAL_MODEL_ENABLED]: 'true',
       });
     });
   });
@@ -42,7 +43,9 @@ describe('LocalModelGate', () => {
     render(<LocalModelGate storage={mockStorage} />);
     fireEvent.click(screen.getByRole('button', { name: /set it up/i }));
     await waitFor(() => {
-      expect(mockStorage.savedData?.localModelGateAcknowledged).toBe('true');
+      expect(
+        mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_GATE_ACKNOWLEDGED]
+      ).toBe('true');
     });
   });
 
@@ -50,7 +53,9 @@ describe('LocalModelGate', () => {
     render(<LocalModelGate storage={mockStorage} />);
     fireEvent.click(screen.getByRole('button', { name: /set it up/i }));
     await waitFor(() => {
-      expect(mockStorage.savedData?.localModelEnabled).toBe('true');
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_ENABLED]).toBe(
+        'true'
+      );
     });
   });
 

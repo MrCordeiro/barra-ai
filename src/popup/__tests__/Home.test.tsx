@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '../../../jest/test-utils';
 import Home from '../components/Home';
+import { STORAGE_KEYS } from '../../storageKeys';
 
 describe('<Home />', () => {
   const setupChromeMock = (
@@ -11,7 +12,9 @@ describe('<Home />', () => {
         local: {
           get: jest
             .fn()
-            .mockResolvedValue(hasKey ? { openaiApiKey: 'sk-test-key' } : {}),
+            .mockResolvedValue(
+              hasKey ? { [STORAGE_KEYS.OPENAI_API_KEY]: 'sk-test-key' } : {}
+            ),
         },
         onChanged: {
           addListener: jest.fn(),
