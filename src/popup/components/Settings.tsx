@@ -191,6 +191,8 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
         title:
           'Runs on your machine via Ollama. May be slower or less accurate.',
         variant: 'top-accent',
+        isClosable: true,
+        duration: 5000,
       });
       setSettings(prev => ({
         ...prev,

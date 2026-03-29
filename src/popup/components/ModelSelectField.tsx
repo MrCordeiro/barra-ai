@@ -7,7 +7,7 @@ import {
   Select,
   Text,
 } from '@chakra-ui/react';
-import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
+import { LLM_MODEL_OPTIONS } from '../../models';
 import {
   normalizeModelDisplay,
   OllamaModelAvailability,
@@ -25,13 +25,33 @@ interface Props {
   onConfigureLocalModel: () => void;
 }
 
+interface ConfigureLocalModelLinkProps {
+  onConfigureLocalModel: () => void;
+}
+
+function ConfigureLocalModelLink({
+  onConfigureLocalModel,
+}: ConfigureLocalModelLinkProps) {
+  return (
+    <Link
+      fontSize="sm"
+      color="blue.500"
+      cursor="pointer"
+      onClick={onConfigureLocalModel}
+      aria-label="Configure local model"
+    >
+      Configure
+    </Link>
+  );
+}
+
 function renderLocalModelsOptions(
   localConnStatus: OllamaModelAvailability | null
 ) {
   if (!localConnStatus) {
     return (
       <option value="__ollama-loading" disabled>
-        Checking Ollama…
+        Checking local models…
       </option>
     );
   }
@@ -41,10 +61,7 @@ function renderLocalModelsOptions(
       return (
         <>
           <option value="__ollama-down" disabled>
-            Ollama not running
-          </option>
-          <option value="__ollama-run" disabled>
-            Run: ollama serve
+            Local models unavailable
           </option>
         </>
       );
@@ -96,7 +113,7 @@ export function ModelSelectField({
       return `${normalizeModelDisplay(modelName)} · Connected`;
     }
 
-    return '⚠ Ollama not reachable';
+    return '⚠ Local model not reachable';
   })();
 
   const localModels =
@@ -121,7 +138,6 @@ export function ModelSelectField({
           {LLM_MODEL_OPTIONS.map(model => (
             <option key={model.value} value={model.value}>
               {model.name}
-              {model.value === DEFAULT_LLM_MODEL.value ? ' (Recommended)' : ''}
             </option>
           ))}
 
@@ -139,38 +155,23 @@ export function ModelSelectField({
         </Select>
       </FormControl>
 
-      {(localConnStatus?.status === OllamaStatus.NotRunning ||
-        localConnStatus?.status === OllamaStatus.NoModels) && (
+      {localConnStatus?.status === OllamaStatus.NoModels && (
         <HStack justify="space-between" align="center" mt={2}>
           <Text fontSize="sm" color="gray.600">
-            {localConnStatus.status === OllamaStatus.NotRunning
-              ? 'Ollama is unavailable.'
-              : 'Install at least one Ollama model to select it.'}
+            Install at least one Ollama model to select it.
           </Text>
-          <Link
-            fontSize="sm"
-            color="blue.500"
-            cursor="pointer"
-            onClick={onConfigureLocalModel}
-            aria-label="Configure local model"
-          >
-            Configure
-          </Link>
+          <ConfigureLocalModelLink
+            onConfigureLocalModel={onConfigureLocalModel}
+          />
         </HStack>
       )}
 
       {isLocalModelSelected && (
         <HStack justify="space-between" align="center" mt={4}>
           <Text fontSize="sm">{localStatusText}</Text>
-          <Link
-            fontSize="sm"
-            color="blue.500"
-            cursor="pointer"
-            onClick={onConfigureLocalModel}
-            aria-label="Configure local model"
-          >
-            Configure
-          </Link>
+          <ConfigureLocalModelLink
+            onConfigureLocalModel={onConfigureLocalModel}
+          />
         </HStack>
       )}
     </>

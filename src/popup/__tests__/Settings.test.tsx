@@ -97,16 +97,15 @@ describe('<Settings />', () => {
     expect(screen.getByText(/Welcome!/i)).toBeInTheDocument();
   });
 
-  test('shows Ollama not-running state in selector', async () => {
+  test('shows local model unavailable state in selector', async () => {
     mockOllamaCheck({ status: OllamaStatus.NotRunning });
     await renderSettings();
 
     await waitFor(() => {
-      expect(screen.getByText(/Ollama not running/i)).toBeInTheDocument();
-      expect(screen.getByText(/Run: ollama serve/i)).toBeInTheDocument();
+      expect(screen.getByText(/Local models unavailable/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Configure/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Run: ollama serve/i)).not.toBeInTheDocument();
   });
 
   test('shows Ollama model list when connected', async () => {

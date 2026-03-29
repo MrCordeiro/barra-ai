@@ -46,7 +46,7 @@ chrome.runtime.onMessage.addListener(function handleBackgroundRequest(
   if (request.type === 'ollama:check') {
     checkOllamaConnection(request.endpoint)
       .then(result => sendResponse(result))
-      .catch(() => sendResponse({ type: OllamaStatus.NotRunning }));
+      .catch(() => sendResponse({ status: OllamaStatus.NotRunning }));
     return true; // keep message channel open for async sendResponse
   }
 });
