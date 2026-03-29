@@ -6,7 +6,6 @@ import NavBar from './components/NavBar';
 import Settings from './components/Settings';
 import LocalModelConfig from './components/LocalModelConfig';
 import LocalModelGate from './components/LocalModelGate';
-import { PROVIDER_CONFIG, PROVIDERS } from '../models';
 import { chromeStorage } from '../storages';
 import { PROVIDER_API_KEYS, STORAGE_KEYS } from '../storageKeys';
 
@@ -15,7 +14,6 @@ function App() {
 
   // Show onboarding if no API key is configured and local model is not enabled
   useEffect(() => {
-    const apiKeyStorageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
     chromeStorage
       .get([
         ...PROVIDER_API_KEYS,
@@ -27,7 +25,7 @@ function App() {
           !!result[STORAGE_KEYS.LOCAL_MODEL_CACHED] &&
           result[STORAGE_KEYS.MODEL_NAME] ===
             result[STORAGE_KEYS.LOCAL_MODEL_CACHED];
-        if (!localSelected && apiKeyStorageKeys.every(key => !result[key]))
+        if (!localSelected && PROVIDER_API_KEYS.every(key => !result[key]))
           setShowOnboarding(true);
       })
       .catch((error: Error) => {

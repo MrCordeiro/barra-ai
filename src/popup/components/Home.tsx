@@ -11,8 +11,7 @@ import {
 } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
 import { chromeStorage, type StorageChangeListener } from '../../storages';
-import { PROVIDER_CONFIG, PROVIDERS } from '../../models';
-import { STORAGE_KEYS } from '../../storageKeys';
+import { PROVIDER_API_KEYS, STORAGE_KEYS } from '../../storageKeys';
 
 interface Props {
   hasApiKey?: boolean;
@@ -28,11 +27,8 @@ const Home = ({ hasApiKey = true }: Props) => {
         return;
       }
 
-      const apiKeyStorageKeys = PROVIDERS.map(
-        p => PROVIDER_CONFIG[p].storageKey
-      );
       const watchedKeys = [
-        ...apiKeyStorageKeys,
+        ...PROVIDER_API_KEYS,
         STORAGE_KEYS.LOCAL_MODEL_ENABLED,
       ];
 
@@ -43,7 +39,7 @@ const Home = ({ hasApiKey = true }: Props) => {
             const localEnabled =
               result[STORAGE_KEYS.LOCAL_MODEL_ENABLED] === 'true';
             setShowWarning(
-              !localEnabled && apiKeyStorageKeys.every(key => !result[key])
+              !localEnabled && PROVIDER_API_KEYS.every(key => !result[key])
             );
           })
           .catch((error: Error) => {

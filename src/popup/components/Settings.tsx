@@ -15,7 +15,7 @@ import {
   OllamaModelAvailability,
   OllamaStatus,
 } from '../../content/ollama';
-import { STORAGE_KEYS as SK } from '../../storageKeys';
+import { PROVIDER_API_KEYS, STORAGE_KEYS as SK } from '../../storageKeys';
 import { ModelSelectField } from './ModelSelectField';
 import { ApiKeyField } from './ApiKeyField';
 
@@ -78,10 +78,9 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
 
   useEffect(
     function loadSettings() {
-      const storageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
       storage
         .get([
-          ...storageKeys,
+          ...PROVIDER_API_KEYS,
           SK.MODEL_NAME,
           SK.LOCAL_MODEL_ENDPOINT,
           SK.LOCAL_MODEL_GATE_ACKNOWLEDGED,
