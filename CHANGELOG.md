@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-30
+
+### Added
+
+- **Ollama local model support**: Run AI completely offline with no API key required. Connect to a local [Ollama](https://ollama.com) instance and select from any model you have installed.
+- Local model configuration page: set a custom Ollama endpoint (defaults to `http://localhost:11434`) and pick the active model from a live-fetched list.
+- Local model gate: onboarding screen that explains disk-space requirements and lets users opt in or out before committing to the setup.
+
 ## [1.3.0] - 2026-03-22
 
 ### Added

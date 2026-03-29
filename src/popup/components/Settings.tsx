@@ -1,21 +1,6 @@
 import { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  FormHelperText,
-  Heading,
-  Input,
-  InputGroup,
-  InputRightElement,
-  Link,
-  Select,
-  Text,
-  useToast,
-} from '@chakra-ui/react';
-import { ExternalLinkIcon } from '@chakra-ui/icons';
+import { Box, Button, Heading, Text, useToast } from '@chakra-ui/react';
 import {
   DEFAULT_LLM_MODEL,
   LLM_MODEL_OPTIONS,
@@ -25,18 +10,32 @@ import {
   getProviderForModel,
 } from '../../models';
 import { Storage } from '../../storages';
+import {
+  DEFAULT_OLLAMA_ENDPOINT,
+  OllamaModelAvailability,
+  OllamaStatus,
+} from '../../content/ollama';
+import { PROVIDER_API_KEYS, STORAGE_KEYS as SK } from '../../storageKeys';
+import { ModelSelectField } from './ModelSelectField';
+import { ApiKeyField } from './ApiKeyField';
 
-interface Settings {
-  apiKeys: Record<Provider, string>;
-  modelName: string;
+interface OllamaSettings {
+  endpoint: string; // '' = not configured
 }
 
-const defaultSettings: Settings = {
+interface SettingsState {
+  apiKeys: Record<Provider, string>;
+  modelName: string;
+  ollama: OllamaSettings;
+}
+
+const defaultSettings: SettingsState = {
   apiKeys: Object.fromEntries(PROVIDERS.map(p => [p, ''])) as Record<
     Provider,
     string
   >,
   modelName: DEFAULT_LLM_MODEL.value,
+  ollama: { endpoint: '' },
 };
 
 interface Props {
@@ -44,32 +43,68 @@ interface Props {
   showOnboarding?: boolean;
 }
 
+async function checkOllamaConn(
+  endpoint: string
+): Promise<OllamaModelAvailability> {
+  const status: OllamaModelAvailability = await chrome.runtime.sendMessage({
+    type: 'ollama:check',
+    endpoint,
+  });
+  return status;
+}
+
+const cloudModelValues = new Set<string>(
+  LLM_MODEL_OPTIONS.map(model => model.value)
+);
+
 const Settings = ({ storage, showOnboarding = false }: Props) => {
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [showKeys, setShowKeys] = useState(false);
+  const [settings, setSettings] = useState<SettingsState>(defaultSettings);
   const [isFormDirty, setIsFormDirty] = useState(false);
+  const [localConnStatus, setLocalConnStatus] =
+    useState<OllamaModelAvailability | null>(null);
+  const [gateAcknowledged, setGateAcknowledged] = useState(false);
+
   const toast = useToast();
   const navigate = useNavigate();
 
+  const activeModelIsCloud = cloudModelValues.has(settings.modelName);
+
+  const refreshOllamaStatus = (endpoint: string) => {
+    setLocalConnStatus(null);
+    checkOllamaConn(endpoint)
+      .then(status => setLocalConnStatus(status))
+      .catch(() => setLocalConnStatus({ status: OllamaStatus.NotRunning }));
+  };
+
   useEffect(
     function loadSettings() {
-      const storageKeys = PROVIDERS.map(p => PROVIDER_CONFIG[p].storageKey);
       storage
-        .get([...storageKeys, 'modelName'])
+        .get([
+          ...PROVIDER_API_KEYS,
+          SK.MODEL_NAME,
+          SK.LOCAL_MODEL_ENDPOINT,
+          SK.LOCAL_MODEL_GATE_ACKNOWLEDGED,
+        ])
         .then(result => {
-          if (storageKeys.some(k => result[k]) || result.modelName) {
-            const apiKeys = Object.fromEntries(
-              PROVIDERS.map(p => [
-                p,
-                result[PROVIDER_CONFIG[p].storageKey] || '',
-              ])
-            ) as Record<Provider, string>;
-            setSettings({
-              apiKeys,
-              modelName: result.modelName || defaultSettings.modelName,
-            });
-          }
+          const normalizedApiKeys = Object.fromEntries(
+            PROVIDERS.map(p => [p, result[PROVIDER_CONFIG[p].storageKey] ?? ''])
+          ) as Record<Provider, string>;
+
+          const ollamaEndpoint = result[SK.LOCAL_MODEL_ENDPOINT] || '';
+
+          setSettings({
+            apiKeys: normalizedApiKeys,
+            modelName: result[SK.MODEL_NAME] || defaultSettings.modelName,
+            ollama: {
+              endpoint: ollamaEndpoint,
+            },
+          });
+          setGateAcknowledged(
+            result[SK.LOCAL_MODEL_GATE_ACKNOWLEDGED] === 'true'
+          );
           setIsFormDirty(false);
+
+          refreshOllamaStatus(ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT);
         })
         .catch((error: Error) => {
           console.error(`Error loading settings: ${error.message}`);
@@ -78,13 +113,34 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
     [storage]
   );
 
-  /* Update model name on change */
-  const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setSettings(prev => ({ ...prev, modelName: e.target.value }));
-    setIsFormDirty(true);
+  const isLocalModelStale = (
+    connStatus: OllamaModelAvailability | null,
+    modelName: string
+  ) => {
+    if (connStatus?.status !== OllamaStatus.Connected) return false;
+    if (!modelName) return false;
+    return !connStatus.models.includes(modelName);
   };
 
-  /* Update a specific provider's API key */
+  useEffect(
+    function ensureLocalModelIsValid() {
+      if (activeModelIsCloud) return;
+      if (!isLocalModelStale(localConnStatus, settings.modelName)) return;
+
+      // The active local model is no longer available in Ollama.
+      setSettings(prev => ({ ...prev, modelName: DEFAULT_LLM_MODEL.value }));
+      storage
+        .set({
+          [SK.MODEL_NAME]: DEFAULT_LLM_MODEL.value,
+          [SK.LOCAL_MODEL_CACHED]: '',
+        })
+        .catch((error: Error) => {
+          console.error(`Error updating stale local model: ${error.message}`);
+        });
+    },
+    [localConnStatus, settings.modelName, storage, activeModelIsCloud]
+  );
+
   const handleApiKeyChange =
     (provider: Provider) => (e: ChangeEvent<HTMLInputElement>) => {
       setSettings(prev => ({
@@ -94,14 +150,59 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       setIsFormDirty(true);
     };
 
+  const persistSelectedModel = (
+    modelName: string,
+    selectedLocalModel?: string
+  ) => {
+    const payload: Record<string, string> = {
+      [SK.MODEL_NAME]: modelName,
+      [SK.LOCAL_MODEL_ENDPOINT]:
+        settings.ollama.endpoint || DEFAULT_OLLAMA_ENDPOINT,
+    };
+
+    if (selectedLocalModel) {
+      payload[SK.LOCAL_MODEL_CACHED] = selectedLocalModel;
+    }
+
+    storage.set(payload).catch((error: Error) => {
+      console.error(`Error saving selected model: ${error.message}`);
+    });
+  };
+
+  const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const nextModel = e.target.value;
+
+    if (!nextModel || nextModel.startsWith('__')) return;
+
+    const isCloudModel = cloudModelValues.has(nextModel);
+
+    if (isCloudModel) {
+      setSettings(prev => ({ ...prev, modelName: nextModel }));
+      persistSelectedModel(nextModel);
+      return;
+    }
+
+    // Selecting a local model requires local setup first.
+    if (!settings.ollama.endpoint && !gateAcknowledged) {
+      navigate('/local-model-gate');
+      return;
+    }
+    if (!settings.ollama.endpoint) {
+      navigate('/local-model-config');
+      return;
+    }
+
+    setSettings(prev => ({ ...prev, modelName: nextModel }));
+    persistSelectedModel(nextModel, nextModel);
+  };
+
   const saveSettings = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const storageData: Record<string, string> = {
-      modelName: settings.modelName,
-    };
+    const storageData: Record<string, string> = {};
     PROVIDERS.forEach(p => {
       storageData[PROVIDER_CONFIG[p].storageKey] = settings.apiKeys[p];
     });
+
     storage
       .set(storageData)
       .then(() => {
@@ -122,16 +223,9 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
       });
   };
 
-  const handleShowKeysClick = () => setShowKeys(!showKeys);
-  const inputType = showKeys ? 'text' : 'password';
-  const selectedProvider = getProviderForModel(settings.modelName);
-  const showHideButton = (
-    <InputRightElement width="4.5rem">
-      <Button h="1.75rem" size="xs" onClick={handleShowKeysClick}>
-        {showKeys ? 'Hide' : 'Show'}
-      </Button>
-    </InputRightElement>
-  );
+  const selectedProvider = activeModelIsCloud
+    ? getProviderForModel(settings.modelName)
+    : null;
 
   return (
     <>
@@ -149,55 +243,22 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           Settings
         </Heading>
       )}
-      <form aria-label="Settings form" onSubmit={saveSettings}>
-        <FormControl isRequired mt={6}>
-          <FormLabel>Model Name</FormLabel>
-          <Select
-            id="model-name"
-            name="modelName"
-            value={settings.modelName}
-            onChange={handleModelChange}
-            aria-label="Model Name"
-          >
-            {PROVIDERS.map(provider => (
-              <optgroup key={provider} label={PROVIDER_CONFIG[provider].label}>
-                {LLM_MODEL_OPTIONS.filter(m => m.provider === provider).map(
-                  model => (
-                    <option key={model.value} value={model.value}>
-                      {model.name}
-                    </option>
-                  )
-                )}
-              </optgroup>
-            ))}
-          </Select>
-        </FormControl>
 
-        {PROVIDERS.map(
-          provider =>
-            selectedProvider === provider && (
-              <FormControl key={provider} mt={6}>
-                <FormLabel>{PROVIDER_CONFIG[provider].label} API Key</FormLabel>
-                <InputGroup size="md">
-                  <Input
-                    id={`${provider}-api-key`}
-                    pr="4.5rem"
-                    type={inputType}
-                    value={settings.apiKeys[provider]}
-                    onChange={handleApiKeyChange(provider)}
-                    aria-label={`${PROVIDER_CONFIG[provider].label} API Key`}
-                  />
-                  {showHideButton}
-                </InputGroup>
-                <FormHelperText>
-                  {showOnboarding ? 'Create' : 'Find'} your API key in{' '}
-                  <Link href={PROVIDER_CONFIG[provider].helpUrl} isExternal>
-                    {PROVIDER_CONFIG[provider].helpLabel}
-                    <ExternalLinkIcon mx="2px" mb="3px" />
-                  </Link>
-                </FormHelperText>
-              </FormControl>
-            )
+      <form aria-label="Settings form" onSubmit={saveSettings}>
+        <ModelSelectField
+          modelName={settings.modelName}
+          localConnStatus={localConnStatus}
+          onModelChange={handleModelChange}
+          onConfigureLocalModel={() => navigate('/local-model-config')}
+        />
+
+        {selectedProvider && (
+          <ApiKeyField
+            provider={selectedProvider}
+            value={settings.apiKeys[selectedProvider]}
+            showOnboarding={showOnboarding}
+            onChange={handleApiKeyChange(selectedProvider)}
+          />
         )}
 
         <Button

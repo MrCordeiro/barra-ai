@@ -1,5 +1,7 @@
 export type Provider = 'openai' | 'anthropic' | 'gemini';
 
+import { STORAGE_KEYS } from './storageKeys';
+
 export const LLM_MODELS = Object.freeze({
   GPT_54: { name: 'GPT-5.4', value: 'gpt-5.4', provider: 'openai' },
   GPT_54_MINI: {
@@ -94,19 +96,19 @@ export function getProviderForModel(modelValue: string): Provider {
 export const PROVIDER_CONFIG = {
   openai: {
     label: 'OpenAI',
-    storageKey: 'openaiApiKey',
+    storageKey: STORAGE_KEYS.OPENAI_API_KEY,
     helpUrl: 'https://platform.openai.com/api-keys',
     helpLabel: 'OpenAI dashboard',
   },
   anthropic: {
     label: 'Anthropic',
-    storageKey: 'anthropicApiKey',
+    storageKey: STORAGE_KEYS.ANTHROPIC_API_KEY,
     helpUrl: 'https://console.anthropic.com/settings/keys',
     helpLabel: 'Anthropic Console',
   },
   gemini: {
     label: 'Google Gemini',
-    storageKey: 'geminiApiKey',
+    storageKey: STORAGE_KEYS.GEMINI_API_KEY,
     helpUrl: 'https://aistudio.google.com/app/apikey',
     helpLabel: 'Google AI Studio',
   },

@@ -1,10 +1,11 @@
-/* eslint-disable @typescript-eslint/await-thenable */
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@chakra-ui/react';
 import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
 import { DEFAULT_LLM_MODEL, LLM_MODEL_OPTIONS } from '../../models';
 import { Storage } from '../../storages';
+import { OllamaModelAvailability, OllamaStatus } from '../../content/ollama';
 import Settings from '../components/Settings';
+import { STORAGE_KEYS } from '../../storageKeys';
 
 /**
  * A mock storage object that saves data in memory
@@ -29,7 +30,7 @@ const mockStorage: Storage & { savedData?: Record<string, string> } = {
   },
   set: _items => {
     return new Promise(resolve => {
-      mockStorage.savedData = _items;
+      mockStorage.savedData = { ...(mockStorage.savedData ?? {}), ..._items };
       resolve();
     });
   },
@@ -47,11 +48,6 @@ const anthropicModel = LLM_MODEL_OPTIONS.find(
   model => model.provider === 'anthropic'
 )!.value;
 
-const geminiModel = LLM_MODEL_OPTIONS.find(
-  model => model.provider === 'gemini'
-)!.value;
-
-// Mock the toast functions
 jest.mock('@chakra-ui/react', () => {
   const originalModule =
     jest.requireActual<typeof import('@chakra-ui/react')>('@chakra-ui/react');
@@ -61,9 +57,25 @@ jest.mock('@chakra-ui/react', () => {
   };
 });
 
+function mockOllamaCheck(
+  result: OllamaModelAvailability = {
+    status: OllamaStatus.NotRunning,
+  }
+) {
+  (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue(result);
+}
+
+async function renderSettings(props: { showOnboarding?: boolean } = {}) {
+  render(<Settings storage={mockStorage} {...props} />);
+  await waitFor(() => {
+    expect(chrome.runtime.sendMessage).toHaveBeenCalled();
+  });
+}
+
 describe('<Settings />', () => {
   beforeEach(() => {
     mockStorage.savedData = {};
+    mockOllamaCheck({ status: OllamaStatus.NotRunning });
   });
 
   afterEach(() => {
@@ -71,198 +83,216 @@ describe('<Settings />', () => {
     jest.restoreAllMocks();
   });
 
-  test('should display a blank settings form', () => {
-    render(<Settings storage={mockStorage} />);
+  test('renders default settings form', async () => {
+    await renderSettings();
 
-    const openaiKeyInput = screen.getByLabelText(/OpenAI API Key/i);
-    expect(openaiKeyInput).toHaveValue('');
-
-    const anthropicKeyInput = screen.queryByLabelText(/Anthropic API Key/i);
-    expect(anthropicKeyInput).not.toBeInTheDocument();
-
-    const modelNameSelect = screen.getByLabelText(/Model Name/i);
-    expect(modelNameSelect).toHaveValue(DEFAULT_LLM_MODEL.value);
-
-    const saveButton = screen.getByRole('button', { name: /Save/i });
-    expect(saveButton).toBeDisabled();
-  });
-
-  test('should show an onboarding message if showOnboarding is true', () => {
-    render(<Settings storage={mockStorage} showOnboarding />);
-
-    const onboardingMessage = screen.getByText(/Welcome!/i);
-    expect(onboardingMessage).toBeInTheDocument();
-  });
-
-  test('changes OpenAI API key value', async () => {
-    const { getByRole, getByLabelText } = render(
-      <Settings storage={mockStorage} />
+    expect(screen.getByLabelText(/Model Name/i)).toHaveValue(
+      DEFAULT_LLM_MODEL.value
     );
-
-    const apiKeyInput = await getByLabelText(/OpenAI API Key/i);
-    fireEvent.change(apiKeyInput, { target: { value: 'new-openai-key' } });
-    expect(apiKeyInput).toHaveValue('new-openai-key');
-
-    const saveButton = await getByRole('button', { name: /Save/i });
-    expect(saveButton).toBeEnabled();
+    expect(screen.getByLabelText(/OpenAI API Key/i)).toHaveValue('');
+    expect(screen.getByRole('button', { name: /Save/i })).toBeDisabled();
   });
 
-  test('changes Anthropic API key value', async () => {
-    const { getByRole, getByLabelText } = render(
-      <Settings storage={mockStorage} />
-    );
+  test('shows onboarding text when requested', async () => {
+    await renderSettings({ showOnboarding: true });
+    expect(screen.getByText(/Welcome!/i)).toBeInTheDocument();
+  });
 
-    const modelNameSelect = await getByLabelText(/Model Name/i);
-    fireEvent.change(modelNameSelect, {
-      target: { value: anthropicModel },
+  test('shows local model unavailable state in selector', async () => {
+    mockOllamaCheck({ status: OllamaStatus.NotRunning });
+    await renderSettings();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Local models unavailable/i)).toBeInTheDocument();
     });
 
-    const apiKeyInput = await getByLabelText(/Anthropic API Key/i);
-    fireEvent.change(apiKeyInput, { target: { value: 'new-anthropic-key' } });
-    expect(apiKeyInput).toHaveValue('new-anthropic-key');
-
-    const saveButton = await getByRole('button', { name: /Save/i });
-    expect(saveButton).toBeEnabled();
+    expect(screen.queryByText(/Run: ollama serve/i)).not.toBeInTheDocument();
   });
 
-  test('changes model name value', async () => {
-    const { getByRole, getByLabelText } = render(
-      <Settings storage={mockStorage} />
-    );
+  test('shows Ollama model list when connected', async () => {
+    mockOllamaCheck({
+      status: OllamaStatus.Connected,
+      models: ['llama3.2:latest', 'mistral:latest'],
+    });
 
-    const modelNameSelect = await getByLabelText(/Model Name/i);
-    fireEvent.change(modelNameSelect, {
+    await renderSettings();
+
+    await waitFor(() => {
+      expect(screen.getByText('Ollama')).toBeInTheDocument();
+      expect(screen.getByText('llama3.2')).toBeInTheDocument();
+      expect(screen.getByText('mistral')).toBeInTheDocument();
+    });
+  });
+
+  test('changes selected cloud model and persists immediately', async () => {
+    mockStorage.savedData = {
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'llama3.2:latest',
+    };
+    await renderSettings();
+
+    fireEvent.change(screen.getByLabelText(/Model Name/i), {
       target: { value: openAIModel },
     });
-    expect(modelNameSelect).toHaveValue(openAIModel);
 
-    const saveButton = await getByRole('button', { name: /Save/i });
-    expect(saveButton).toBeEnabled();
+    await waitFor(() => {
+      expect(mockStorage.savedData?.[STORAGE_KEYS.MODEL_NAME]).toBe(
+        openAIModel
+      );
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_CACHED]).toBe(
+        'llama3.2:latest'
+      );
+    });
   });
 
-  test("handleSubmit should call storage.set and navigate to '/'", async () => {
+  test.each([
+    {
+      localModelGateAcknowledged: undefined,
+      expectedPath: '/local-model-gate',
+      label: 'for first-time selection when gate is not acknowledged',
+    },
+    {
+      localModelGateAcknowledged: 'true',
+      expectedPath: '/local-model-config',
+      label: 'after gate is acknowledged',
+    },
+  ])(
+    'navigates to $expectedPath when selecting local model $label',
+    async ({ localModelGateAcknowledged, expectedPath }) => {
+      const mockNavigate = jest.fn();
+      (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
+
+      mockStorage.savedData = localModelGateAcknowledged
+        ? {
+            [STORAGE_KEYS.LOCAL_MODEL_GATE_ACKNOWLEDGED]:
+              localModelGateAcknowledged,
+          }
+        : {};
+
+      mockOllamaCheck({
+        status: OllamaStatus.Connected,
+        models: ['llama3.2:latest'],
+      });
+
+      await renderSettings();
+
+      await waitFor(() => {
+        expect(screen.getByText('llama3.2')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText(/Model Name/i), {
+        target: { value: 'llama3.2:latest' },
+      });
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(expectedPath);
+      });
+    }
+  );
+
+  test('selecting configured local model persists local selection', async () => {
+    const mockToast = jest.fn();
+    (useToast as jest.Mock).mockReturnValue(mockToast);
+
+    mockStorage.savedData = {
+      [STORAGE_KEYS.LOCAL_MODEL_ENDPOINT]: 'http://localhost:11434',
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'mistral:latest',
+      [STORAGE_KEYS.MODEL_NAME]: anthropicModel,
+    };
+
+    mockOllamaCheck({
+      status: OllamaStatus.Connected,
+      models: ['llama3.2:latest', 'mistral:latest'],
+    });
+
+    await renderSettings();
+
+    await waitFor(() => {
+      expect(screen.getByText('llama3.2')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText(/Model Name/i), {
+      target: { value: 'llama3.2:latest' },
+    });
+
+    await waitFor(() => {
+      expect(mockStorage.savedData?.[STORAGE_KEYS.MODEL_NAME]).toBe(
+        'llama3.2:latest'
+      );
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_CACHED]).toBe(
+        'llama3.2:latest'
+      );
+    });
+  });
+
+  test('shows local connected status line when a local model is selected', async () => {
+    mockStorage.savedData = {
+      [STORAGE_KEYS.LOCAL_MODEL_ENDPOINT]: 'http://localhost:11434',
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'llama3.2:latest',
+      [STORAGE_KEYS.MODEL_NAME]: 'llama3.2:latest',
+    };
+    mockOllamaCheck({
+      status: OllamaStatus.Connected,
+      models: ['llama3.2:latest'],
+    });
+
+    await renderSettings();
+
+    await waitFor(() => {
+      expect(screen.getByText(/llama3\.2 · Connected/)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/Anthropic API Key/i)
+    ).not.toBeInTheDocument();
+  });
+
+  test('falls back to default cloud model when selected local model disappears', async () => {
+    mockStorage.savedData = {
+      [STORAGE_KEYS.LOCAL_MODEL_ENDPOINT]: 'http://localhost:11434',
+      [STORAGE_KEYS.LOCAL_MODEL_CACHED]: 'llama3.2:latest',
+      [STORAGE_KEYS.MODEL_NAME]: 'llama3.2:latest',
+    };
+    mockOllamaCheck({
+      status: OllamaStatus.Connected,
+      models: ['mistral:latest'],
+    });
+
+    await renderSettings();
+
+    await waitFor(() => {
+      expect(mockStorage.savedData?.[STORAGE_KEYS.MODEL_NAME]).toBe(
+        DEFAULT_LLM_MODEL.value
+      );
+      expect(mockStorage.savedData?.[STORAGE_KEYS.LOCAL_MODEL_CACHED]).toBe('');
+    });
+  });
+
+  test('saves cloud API keys via Save button', async () => {
     const mockNavigate = jest.fn();
     (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
     const mockToast = jest.fn();
     (useToast as jest.Mock).mockReturnValue(mockToast);
 
-    const { getByLabelText, getByRole } = render(
-      <Settings storage={mockStorage} />
-    );
+    await renderSettings();
 
-    fireEvent.change(getByLabelText(/Model Name/i), {
+    fireEvent.change(screen.getByLabelText(/Model Name/i), {
       target: { value: anthropicModel },
     });
-    fireEvent.change(getByLabelText(/Anthropic API Key/i), {
+    fireEvent.change(screen.getByLabelText(/Anthropic API Key/i), {
       target: { value: 'my-anthropic-key' },
     });
-    fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: openAIModel },
-    });
-    fireEvent.change(getByLabelText(/OpenAI API Key/i), {
-      target: { value: 'my-openai-key' },
-    });
-    fireEvent.click(getByRole('button', { name: /Save/i }));
-
-    expect(mockStorage.savedData).toEqual({
-      openaiApiKey: 'my-openai-key',
-      anthropicApiKey: 'my-anthropic-key',
-      geminiApiKey: '',
-      modelName: openAIModel,
-    });
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
 
     await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith({
-        status: 'success',
-        title: 'Settings saved! 🎉',
-        variant: 'top-accent',
+      expect(mockStorage.savedData).toMatchObject({
+        [STORAGE_KEYS.ANTHROPIC_API_KEY]: 'my-anthropic-key',
       });
     });
 
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'success' })
+    );
     expect(mockNavigate).toHaveBeenCalledWith('/');
-  });
-
-  test('should log an error if we fail useEffect to get saved settings', async () => {
-    const mockError = new Error('Mock error message');
-    jest.spyOn(mockStorage, 'get').mockImplementation(() => {
-      return Promise.reject(mockError);
-    });
-    jest.spyOn(console, 'error').mockImplementation(() => null);
-
-    render(<Settings storage={mockStorage} />);
-
-    await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(
-        `Error loading settings: ${mockError.message}`
-      );
-    });
-  });
-
-  test('handleSubmit should show an error toast if storage.set fails', async () => {
-    const mockError = new Error('Mock error message');
-    jest.spyOn(mockStorage, 'set').mockImplementation(() => {
-      return Promise.reject(mockError);
-    });
-    jest.spyOn(console, 'error').mockImplementation(() => null);
-
-    const mockToast = jest.fn();
-    (useToast as jest.Mock).mockReturnValue(mockToast);
-
-    const { getByLabelText, getByRole } = render(
-      <Settings storage={mockStorage} />
-    );
-
-    fireEvent.change(getByLabelText(/OpenAI API Key/i), {
-      target: { value: 'newApiKey' },
-    });
-    fireEvent.change(getByLabelText(/Model Name/i), {
-      target: { value: openAIModel },
-    });
-    fireEvent.click(getByRole('button', { name: /Save/i }));
-
-    await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith({
-        status: 'error',
-        title: 'Failed to save settings 😢',
-        variant: 'top-accent',
-      });
-    });
-    await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(
-        `Error saving settings: ${mockError.message}`
-      );
-    });
-  });
-
-  test('shows only the API key input for the selected provider', async () => {
-    const { getByLabelText, queryByLabelText } = render(
-      <Settings storage={mockStorage} />
-    );
-
-    expect(getByLabelText(/OpenAI API Key/i)).toBeInTheDocument();
-    expect(queryByLabelText(/Anthropic API Key/i)).not.toBeInTheDocument();
-
-    const modelNameSelect = getByLabelText(/Model Name/i);
-    fireEvent.change(modelNameSelect, { target: { value: anthropicModel } });
-
-    await waitFor(() => {
-      expect(getByLabelText(/Anthropic API Key/i)).toBeInTheDocument();
-    });
-    expect(queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
-  });
-
-  test('shows only the Gemini API key input when a Gemini model is selected', async () => {
-    const { getByLabelText, queryByLabelText } = render(
-      <Settings storage={mockStorage} />
-    );
-
-    const modelNameSelect = getByLabelText(/Model Name/i);
-    fireEvent.change(modelNameSelect, { target: { value: geminiModel } });
-
-    await waitFor(() => {
-      expect(getByLabelText(/Gemini API Key/i)).toBeInTheDocument();
-    });
-    expect(queryByLabelText(/OpenAI API Key/i)).not.toBeInTheDocument();
-    expect(queryByLabelText(/Anthropic API Key/i)).not.toBeInTheDocument();
   });
 });

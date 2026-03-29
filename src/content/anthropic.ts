@@ -3,6 +3,7 @@
 import { Storage, chromeStorage } from '../storages';
 import { extractErrorMessage } from './providerError';
 import { parseSSEStream } from './sseParser';
+import { STORAGE_KEYS } from '../storageKeys';
 
 interface AnthropicStreamChunk {
   type: string;
@@ -64,7 +65,8 @@ export async function fetchAnthropicResponse(
 }
 
 async function getSettings(storage: Storage) {
-  const { anthropicApiKey } = await storage.get(['anthropicApiKey']);
+  const { [STORAGE_KEYS.ANTHROPIC_API_KEY]: anthropicApiKey } =
+    await storage.get([STORAGE_KEYS.ANTHROPIC_API_KEY]);
   if (!anthropicApiKey) {
     throw new Error(
       'Anthropic API Key is not set. Please go to the settings page to set it.'

@@ -4,7 +4,11 @@ import { render, RenderOptions } from '@testing-library/react';
 import { HashRouter as Router } from 'react-router-dom';
 
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
-  return <Router>{children}</Router>;
+  return (
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      {children}
+    </Router>
+  );
 };
 
 const customRender = (

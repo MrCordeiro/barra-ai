@@ -1,6 +1,6 @@
 {
   "name": "barra-ai",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Barra/AI - summon AI with a slash",
   "private": true,
   "type": "module",
@@ -25,7 +25,6 @@
     "react-router-dom": "^6.30.3"
   },
   "devDependencies": {
-    "@crxjs/vite-plugin": "^2.0.0-beta.28",
     "@jest/globals": "^29.7.0",
     "@testing-library/jest-dom": "^6.4.5",
     "@testing-library/react": "^15.0.7",
@@ -33,8 +32,8 @@
     "@types/jest": "^29.5.12",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@typescript-eslint/eslint-plugin": "^7.2.0",
-    "@typescript-eslint/parser": "^7.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
     "@vitejs/plugin-react-swc": "^3.8.1",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.1",

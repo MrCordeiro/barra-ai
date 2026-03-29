@@ -82,14 +82,12 @@ class LexicalElement implements EditableElement {
       // state before running the paste handler, so selectAll() works here.
       this.selectAll();
       this.pasteText(newText);
-      console.debug(`Inserted initial text into Lexical editor: "${newText}"`);
     } else {
       // Subsequent calls: Lexical's cursor is already at the end of the
       // previously inserted text, so we only paste the new delta.
       const delta = newText.substring(this.insertedLength);
       if (delta) {
         this.pasteText(delta);
-        console.debug(`Inserted delta text into Lexical editor: "${delta}"`);
       }
     }
 

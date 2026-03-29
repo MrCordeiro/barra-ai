@@ -3,6 +3,7 @@
 import { Storage, chromeStorage } from '../storages';
 import { extractErrorMessage } from './providerError';
 import { parseSSEStream } from './sseParser';
+import { STORAGE_KEYS } from '../storageKeys';
 
 interface GPTStreamChunk {
   choices: { delta: { content?: string }; index: number }[];
@@ -61,7 +62,9 @@ export async function fetchGptResponse(
 }
 
 async function getSettings(storage: Storage) {
-  const { openaiApiKey } = await storage.get(['openaiApiKey']);
+  const { [STORAGE_KEYS.OPENAI_API_KEY]: openaiApiKey } = await storage.get([
+    STORAGE_KEYS.OPENAI_API_KEY,
+  ]);
   if (!openaiApiKey) {
     throw new Error(
       'OpenAI API Key is not set. Please go to the settings page to set it.'

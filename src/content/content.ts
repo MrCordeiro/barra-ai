@@ -9,7 +9,6 @@
 
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
-import { fetchAIResponse } from './ai';
 import { getEditableElement } from './editableElements';
 
 const AI_COMMAND = '/ai ';
@@ -33,25 +32,37 @@ function handleKeyDown(event: KeyboardEvent): void {
   event.stopImmediatePropagation();
 
   const prompt = createPrompt(text);
-
   let accumulatedText = '';
-  fetchAIResponse(prompt, chunk => {
-    accumulatedText += chunk;
-    element.setText(accumulatedText);
-  })
-    .then(response => {
-      console.log(response);
-    })
-    .catch((error: Error) => {
-      chrome.runtime
-        .sendMessage({
-          type: 'API_ERROR',
-          message: error.message,
-        })
-        .catch(error =>
-          console.error('Error sending message to background:', error)
-        );
-    });
+
+  // All inference goes through the background service worker via a Port.
+  // The background worker reads storage to decide which provider to use,
+  // so the content script never needs to know which provider is active.
+  const port = chrome.runtime.connect({ name: 'inference' });
+
+  port.onMessage.addListener(
+    (msg: { type: string; content?: string; message?: string }) => {
+      if (msg.type === 'chunk' && msg.content) {
+        accumulatedText += msg.content;
+        element.setText(accumulatedText);
+      }
+      if (msg.type === 'done') {
+        port.disconnect();
+      }
+      if (msg.type === 'error') {
+        port.disconnect();
+        chrome.runtime
+          .sendMessage({
+            type: 'API_ERROR',
+            message: msg.message ?? 'Unknown error',
+          })
+          .catch(error =>
+            console.error('Error sending message to background:', error)
+          );
+      }
+    }
+  );
+
+  port.postMessage({ type: 'start', prompt });
 }
 
 function createPrompt(text: string) {

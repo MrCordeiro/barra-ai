@@ -1,10 +1,22 @@
 'use strict';
 
 import { chromeStorage, Storage } from '../storages';
-import { DEFAULT_LLM_MODEL, getProviderForModel, Provider } from '../models';
+import {
+  DEFAULT_LLM_MODEL,
+  getProviderForModel,
+  LLM_MODEL_OPTIONS,
+  PROVIDER_CONFIG,
+  Provider,
+} from '../models';
 import { fetchGptResponse } from './openai';
 import { fetchAnthropicResponse } from './anthropic';
 import { fetchGeminiResponse } from './gemini';
+import { fetchOllamaResponse, DEFAULT_OLLAMA_ENDPOINT } from './ollama';
+import {
+  MODEL_STORAGE_KEYS,
+  PROVIDER_API_KEYS,
+  STORAGE_KEYS as SK,
+} from '../storageKeys';
 
 export const USE_MOCK = /^(?:y|yes|true|1)$/i.test(process.env.USE_MOCK ?? '');
 
@@ -44,9 +56,49 @@ export async function fetchAIResponse(
     onChunk?.(response);
     return response;
   }
-  const { modelName } = await chromeStorage.get(['modelName']);
-  const resolvedModel = modelName || DEFAULT_LLM_MODEL.value;
+
+  const stored = await chromeStorage.get([
+    ...MODEL_STORAGE_KEYS,
+    ...PROVIDER_API_KEYS,
+  ]);
+
+  const resolvedModel = stored[SK.MODEL_NAME] || DEFAULT_LLM_MODEL.value;
+  const knownCloudModels = new Set<string>(
+    LLM_MODEL_OPTIONS.map(model => model.value)
+  );
+  const localModelIsSelected =
+    !!stored[SK.LOCAL_MODEL_CACHED] &&
+    (resolvedModel === stored[SK.LOCAL_MODEL_CACHED] ||
+      !knownCloudModels.has(resolvedModel));
+
+  if (localModelIsSelected) {
+    const endpoint = stored[SK.LOCAL_MODEL_ENDPOINT] || DEFAULT_OLLAMA_ENDPOINT;
+    if (!stored[SK.LOCAL_MODEL_CACHED]) {
+      throw new Error(
+        'No local model selected. Please open settings and choose a model.'
+      );
+    }
+    return fetchOllamaResponse(
+      prompt,
+      stored[SK.LOCAL_MODEL_CACHED],
+      endpoint,
+      onChunk
+    );
+  }
+
   const provider = getProviderForModel(resolvedModel);
+  const providerApiKey = stored[PROVIDER_CONFIG[provider].storageKey];
+
+  // If cloud credentials are missing, prefer local as a runtime fallback.
+  if (!providerApiKey && stored[SK.LOCAL_MODEL_CACHED]) {
+    return fetchOllamaResponse(
+      prompt,
+      stored[SK.LOCAL_MODEL_CACHED],
+      stored[SK.LOCAL_MODEL_ENDPOINT] || DEFAULT_OLLAMA_ENDPOINT,
+      onChunk
+    );
+  }
+
   return providerHandlers[provider](
     prompt,
     resolvedModel,
