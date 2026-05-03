@@ -1,5 +1,5 @@
 import { act } from '@testing-library/react';
-import { createStatusIndicator } from '../statusIndicator';
+import { createStatusIndicator, StatusIndicator } from '../statusIndicator';
 
 const HOST_ID = 'barra-ai-status-host';
 
@@ -21,9 +21,19 @@ beforeAll(() => {
   });
 });
 
+const indicators: StatusIndicator[] = [];
+const anchors: HTMLElement[] = [];
+
+function makeIndicator(): StatusIndicator {
+  const created = createStatusIndicator();
+  indicators.push(created);
+  return created;
+}
+
 function makeAnchor(rect: Partial<DOMRect> = {}): HTMLElement {
   const el = document.createElement('textarea');
   document.body.appendChild(el);
+  anchors.push(el);
   jest.spyOn(el, 'getBoundingClientRect').mockReturnValue({
     top: 100,
     right: 400,
@@ -45,11 +55,18 @@ function getHost(): HTMLElement | null {
 
 describe('createStatusIndicator', () => {
   afterEach(() => {
-    document.getElementById(HOST_ID)?.remove();
+    // Tear down everything created by the test: hide() unmounts the React
+    // root and removes the scroll/resize listeners; then drop any anchors
+    // appended to document.body. Without this, listeners and roots leak
+    // across tests and make them order-dependent.
+    act(() => {
+      while (indicators.length) indicators.pop()!.hide();
+    });
+    while (anchors.length) anchors.pop()!.remove();
   });
 
   test('show() mounts a host with a shadow root containing the loading copy', () => {
-    const indicator = createStatusIndicator();
+    const indicator = makeIndicator();
     const anchor = makeAnchor();
 
     act(() => {
@@ -63,7 +80,7 @@ describe('createStatusIndicator', () => {
   });
 
   test('show() renders a Chakra Spinner inside the shadow root', () => {
-    const indicator = createStatusIndicator();
+    const indicator = makeIndicator();
     const anchor = makeAnchor();
 
     act(() => {
@@ -75,7 +92,7 @@ describe('createStatusIndicator', () => {
   });
 
   test('show() positions the pill using the anchor rect', () => {
-    const indicator = createStatusIndicator();
+    const indicator = makeIndicator();
     const anchor = makeAnchor({ top: 250, right: 600 });
 
     act(() => {
@@ -91,7 +108,7 @@ describe('createStatusIndicator', () => {
   });
 
   test('show() is idempotent — a second call does not create a second host', () => {
-    const indicator = createStatusIndicator();
+    const indicator = makeIndicator();
     const anchor = makeAnchor();
 
     act(() => {
@@ -103,7 +120,7 @@ describe('createStatusIndicator', () => {
   });
 
   test('hide() removes the host node', () => {
-    const indicator = createStatusIndicator();
+    const indicator = makeIndicator();
     const anchor = makeAnchor();
 
     act(() => {
@@ -118,13 +135,13 @@ describe('createStatusIndicator', () => {
   });
 
   test('hide() is safe to call before any show()', () => {
-    const indicator = createStatusIndicator();
+    const indicator = makeIndicator();
     expect(() => indicator.hide()).not.toThrow();
     expect(getHost()).toBeNull();
   });
 
   test('hide() removes the scroll and resize viewport listeners', () => {
-    const indicator = createStatusIndicator();
+    const indicator = makeIndicator();
     const anchor = makeAnchor();
     const removeSpy = jest.spyOn(window, 'removeEventListener');
 
@@ -140,7 +157,7 @@ describe('createStatusIndicator', () => {
   });
 
   test('show() can be called again after hide() to remount the indicator', () => {
-    const indicator = createStatusIndicator();
+    const indicator = makeIndicator();
     const anchor = makeAnchor();
 
     act(() => {

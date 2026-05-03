@@ -38,6 +38,7 @@ export function createStatusIndicator(): StatusIndicator {
   let root: ReactDOM.Root | null = null;
   let cache: EmotionCache | null = null;
   let currentAnchor: HTMLElement | null = null;
+  let pendingFrame: number | null = null;
 
   const renderPill = (anchor: HTMLElement) => {
     if (!root || !cache) return;
@@ -73,8 +74,14 @@ export function createStatusIndicator(): StatusIndicator {
     );
   };
 
+  // Coalesce scroll/resize bursts to one render per animation frame so the
+  // React tree isn't re-rendered on every captured scroll event.
   const handleViewportChange = () => {
-    if (currentAnchor) renderPill(currentAnchor);
+    if (pendingFrame !== null) return;
+    pendingFrame = window.requestAnimationFrame(() => {
+      pendingFrame = null;
+      if (currentAnchor) renderPill(currentAnchor);
+    });
   };
 
   return {
@@ -107,6 +114,10 @@ export function createStatusIndicator(): StatusIndicator {
     hide(): void {
       currentAnchor = null;
       if (!host) return;
+      if (pendingFrame !== null) {
+        window.cancelAnimationFrame(pendingFrame);
+        pendingFrame = null;
+      }
       window.removeEventListener('scroll', handleViewportChange, true);
       window.removeEventListener('resize', handleViewportChange);
       root?.unmount();
