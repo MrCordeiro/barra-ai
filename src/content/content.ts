@@ -10,8 +10,10 @@
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
 import { getEditableElement } from './editableElements';
+import { createStatusIndicator } from './statusIndicator';
 
 const AI_COMMAND = '/ai ';
+const statusIndicator = createStatusIndicator();
 
 function handleKeyDown(event: KeyboardEvent): void {
   const activationCmd = event.key === 'Tab';
@@ -33,6 +35,11 @@ function handleKeyDown(event: KeyboardEvent): void {
 
   const prompt = createPrompt(text);
   let accumulatedText = '';
+  let firstChunkHandled = false;
+
+  // Surface "captured + loading" the moment we commit to handling the Tab,
+  // before the port round-trip starts. Hidden on first chunk / done / error.
+  statusIndicator.show(activeElement);
 
   // All inference goes through the background service worker via a Port.
   // The background worker reads storage to decide which provider to use,
@@ -44,11 +51,17 @@ function handleKeyDown(event: KeyboardEvent): void {
       if (msg.type === 'chunk' && msg.content) {
         accumulatedText += msg.content;
         element.setText(accumulatedText);
+        if (!firstChunkHandled) {
+          firstChunkHandled = true;
+          statusIndicator.hide();
+        }
       }
       if (msg.type === 'done') {
+        statusIndicator.hide();
         port.disconnect();
       }
       if (msg.type === 'error') {
+        statusIndicator.hide();
         port.disconnect();
         chrome.runtime
           .sendMessage({
