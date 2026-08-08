@@ -90,11 +90,11 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
             PROVIDERS.map(p => [p, result[PROVIDER_CONFIG[p].storageKey] ?? ''])
           ) as Record<Provider, string>;
 
-          const ollamaEndpoint = result[SK.LOCAL_MODEL_ENDPOINT] || '';
+          const ollamaEndpoint = result[SK.LOCAL_MODEL_ENDPOINT] ?? '';
 
           setSettings({
             apiKeys: normalizedApiKeys,
-            modelName: result[SK.MODEL_NAME] || defaultSettings.modelName,
+            modelName: result[SK.MODEL_NAME] ?? defaultSettings.modelName,
             ollama: {
               endpoint: ollamaEndpoint,
             },

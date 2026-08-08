@@ -2,13 +2,14 @@ import { triggerNotification } from '../notifications';
 
 describe('Browser Notifications', () => {
   beforeAll(() => {
-    global.browser = {
+    const browserMock = {
       // @ts-expect-error This is a mock implementation
       notifications: {
         create: jest.fn(),
       },
-    };
-    global.chrome = global.browser;
+    } as unknown as typeof browser;
+
+    global.browser = browserMock;
   });
 
   test('should trigger a notification with correct title and message', () => {

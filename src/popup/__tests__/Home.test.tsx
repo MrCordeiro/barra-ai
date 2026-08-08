@@ -25,7 +25,6 @@ describe('<Home />', () => {
 
     if (includeListener) {
       global.browser = browserMock as unknown as typeof browser;
-      global.chrome = global.browser;
     }
 
     return browserMock as unknown as typeof browser;
@@ -33,7 +32,6 @@ describe('<Home />', () => {
 
   beforeEach(() => {
     global.browser = setupBrowserMock();
-    global.chrome = global.browser;
   });
 
   afterEach(() => {
@@ -62,7 +60,6 @@ describe('<Home />', () => {
 
   test('hides warning when storage already has an API key', async () => {
     global.browser = setupBrowserMock(true, true);
-    global.chrome = global.browser;
 
     render(<Home hasApiKey={false} />);
 

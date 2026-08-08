@@ -62,7 +62,7 @@ export async function fetchAIResponse(
     ...PROVIDER_API_KEYS,
   ]);
 
-  const resolvedModel = stored[SK.MODEL_NAME] || DEFAULT_LLM_MODEL.value;
+  const resolvedModel = stored[SK.MODEL_NAME] ?? DEFAULT_LLM_MODEL.value;
   const knownCloudModels = new Set<string>(
     LLM_MODEL_OPTIONS.map(model => model.value)
   );
@@ -70,9 +70,13 @@ export async function fetchAIResponse(
     !!stored[SK.LOCAL_MODEL_CACHED] &&
     (resolvedModel === stored[SK.LOCAL_MODEL_CACHED] ||
       !knownCloudModels.has(resolvedModel));
+  const localModelEndpoint = stored[SK.LOCAL_MODEL_ENDPOINT];
+  const resolvedLocalEndpoint =
+    localModelEndpoint && localModelEndpoint.length > 0
+      ? localModelEndpoint
+      : DEFAULT_OLLAMA_ENDPOINT;
 
   if (localModelIsSelected) {
-    const endpoint = stored[SK.LOCAL_MODEL_ENDPOINT] || DEFAULT_OLLAMA_ENDPOINT;
     if (!stored[SK.LOCAL_MODEL_CACHED]) {
       throw new Error(
         'No local model selected. Please open settings and choose a model.'
@@ -81,7 +85,7 @@ export async function fetchAIResponse(
     return fetchOllamaResponse(
       prompt,
       stored[SK.LOCAL_MODEL_CACHED],
-      endpoint,
+      resolvedLocalEndpoint,
       onChunk
     );
   }
@@ -94,7 +98,7 @@ export async function fetchAIResponse(
     return fetchOllamaResponse(
       prompt,
       stored[SK.LOCAL_MODEL_CACHED],
-      stored[SK.LOCAL_MODEL_ENDPOINT] || DEFAULT_OLLAMA_ENDPOINT,
+      resolvedLocalEndpoint,
       onChunk
     );
   }

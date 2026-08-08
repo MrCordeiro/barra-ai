@@ -104,7 +104,7 @@ const LocalModelConfig = ({ storage }: Props) => {
           const savedEndpoint =
             normalizeLocalEndpoint(result[SK.LOCAL_MODEL_ENDPOINT] ?? '') ??
             DEFAULT_OLLAMA_ENDPOINT;
-          const savedModel = result[SK.LOCAL_MODEL_CACHED] || '';
+          const savedModel = result[SK.LOCAL_MODEL_CACHED] ?? '';
           setEndpoint(savedEndpoint);
           setSelectedModel(savedModel);
           void runConnectionCheck(savedEndpoint, savedModel);

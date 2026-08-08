@@ -110,8 +110,11 @@ export async function updateCorsRule(): Promise<void> {
   const enabled =
     !!stored[SK.LOCAL_MODEL_CACHED] &&
     stored[SK.MODEL_NAME] === stored[SK.LOCAL_MODEL_CACHED];
+  const localModelEndpoint = stored[SK.LOCAL_MODEL_ENDPOINT];
   const endpoint = normalizeEndpointOrigin(
-    stored[SK.LOCAL_MODEL_ENDPOINT] || DEFAULT_OLLAMA_ENDPOINT
+    localModelEndpoint && localModelEndpoint.length > 0
+      ? localModelEndpoint
+      : DEFAULT_OLLAMA_ENDPOINT
   );
 
   if (enabled) {
