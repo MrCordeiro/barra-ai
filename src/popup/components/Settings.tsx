@@ -9,6 +9,7 @@ import {
   Provider,
   getProviderForModel,
 } from '../../models';
+import { browser } from '../../browser';
 import { Storage } from '../../storages';
 import {
   DEFAULT_OLLAMA_ENDPOINT,
@@ -46,7 +47,7 @@ interface Props {
 async function checkOllamaConn(
   endpoint: string
 ): Promise<OllamaModelAvailability> {
-  const status: OllamaModelAvailability = await chrome.runtime.sendMessage({
+  const status: OllamaModelAvailability = await browser.runtime.sendMessage({
     type: 'ollama:check',
     endpoint,
   });

@@ -1,3 +1,4 @@
+import { browser } from '../../browser';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@chakra-ui/react';
 import { render, screen, fireEvent, waitFor } from '../../../jest/test-utils';
@@ -62,13 +63,13 @@ function mockOllamaCheck(
     status: OllamaStatus.NotRunning,
   }
 ) {
-  (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue(result);
+  (browser.runtime.sendMessage as jest.Mock).mockResolvedValue(result);
 }
 
 async function renderSettings(props: { showOnboarding?: boolean } = {}) {
   render(<Settings storage={mockStorage} {...props} />);
   await waitFor(() => {
-    expect(chrome.runtime.sendMessage).toHaveBeenCalled();
+    expect(browser.runtime.sendMessage).toHaveBeenCalled();
   });
 }
 

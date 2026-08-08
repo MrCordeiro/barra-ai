@@ -1,5 +1,6 @@
 'use strict';
 
+import { browser, type Browser } from '../browser';
 import { fetchAIResponse } from '../content/ai';
 import { chromeStorage } from '../storages';
 import { DEFAULT_OLLAMA_ENDPOINT } from '../content/ollama';
@@ -60,7 +61,7 @@ function categorizeError(error: unknown): ErrorMessage['code'] {
  * (routing is handled by fetchAIResponse in ai.ts), and streams chunks
  * back over the port.
  */
-export function handleInferencePort(port: chrome.runtime.Port): void {
+export function handleInferencePort(port: Browser.runtime.Port): void {
   port.onMessage.addListener((msg: StartMessage) => {
     if (msg.type !== 'start') return;
     void runInference(port, msg.prompt);
@@ -68,7 +69,7 @@ export function handleInferencePort(port: chrome.runtime.Port): void {
 }
 
 async function runInference(
-  port: chrome.runtime.Port,
+  port: Browser.runtime.Port,
   prompt: string
 ): Promise<void> {
   // Ensure the declarativeNetRequest CORS rule is current before fetching.
@@ -113,19 +114,19 @@ export async function updateCorsRule(): Promise<void> {
   );
 
   if (enabled) {
-    await chrome.declarativeNetRequest.updateDynamicRules({
+    await browser.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: [1],
       addRules: [
         {
           id: 1,
           priority: 1,
           action: {
-            type: 'modifyHeaders' as chrome.declarativeNetRequest.RuleActionType,
+            type: 'modifyHeaders' as Browser.declarativeNetRequest.RuleActionType,
             requestHeaders: [
               {
                 header: 'Origin',
                 operation:
-                  'set' as chrome.declarativeNetRequest.HeaderOperation,
+                  'set' as Browser.declarativeNetRequest.HeaderOperation,
                 value: endpoint,
               },
             ],
@@ -133,14 +134,14 @@ export async function updateCorsRule(): Promise<void> {
           condition: {
             urlFilter: `${endpoint}/*`,
             resourceTypes: [
-              'xmlhttprequest' as chrome.declarativeNetRequest.ResourceType,
+              'xmlhttprequest' as Browser.declarativeNetRequest.ResourceType,
             ],
           },
         },
       ],
     });
   } else {
-    await chrome.declarativeNetRequest.updateDynamicRules({
+    await browser.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: [1],
       addRules: [],
     });

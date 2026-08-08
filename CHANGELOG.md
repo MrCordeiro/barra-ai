@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-08-08
+
+### Changed
+
+- Build tooling migrated from CRXJS/Vite to [WXT](https://wxt.dev/). The extension
+  builds again; output moved from `dist/` to `.output/chrome-mv3/`.
+- Extension metadata now lives in the `manifest` block of `wxt.config.ts`; the
+  hand-written `manifest.json` has been removed.
+- Extension APIs are accessed through `browser` (imported from `src/browser.ts`)
+  instead of the `chrome` global, ahead of Firefox support.
+- Node.js 22 or newer is now required.
+
 ## [1.4.0] - 2026-03-30
 
 ### Added
