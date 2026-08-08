@@ -9,7 +9,14 @@ module.exports = {
     'plugin:react/recommended',
     'plugin:react/jsx-runtime',
   ],
-  ignorePatterns: ['dist', '.eslintrc.cjs', 'node_modules', 'jest.config.js'],
+  ignorePatterns: [
+    'dist',
+    '.output',
+    '.wxt',
+    '.eslintrc.cjs',
+    'node_modules',
+    'jest.config.js',
+  ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 'latest',

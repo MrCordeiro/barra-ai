@@ -64,9 +64,30 @@ Type `/ai ` followed by your prompt in **any input or text field**, press Tab, a
 
 ## Development
 
+The extension is built with [WXT](https://wxt.dev/). Node.js 22 or newer is required.
+
 1. Fork the repository
-2. Run `npm run build`
-3. Open chrome://extensions
-4. Check the Developer mode checkbox
-5. Click on the Load unpacked extension button
-6. Select the folder `barra-ai/dist`
+2. Run `npm install` — the `postinstall` hook runs `wxt prepare`, which generates
+   the `.wxt/` directory. TypeScript, ESLint and your editor need it, so install
+   before running `npm run compile` or `npm run lint` on a fresh clone.
+3. Run `npm run build`
+4. Open chrome://extensions (or edge://extensions)
+5. Check the Developer mode checkbox
+6. Click on the Load unpacked extension button
+7. Select the folder `barra-ai/.output/chrome-mv3`
+
+`npm run dev` starts WXT in watch mode with hot reloading, and `npm run zip`
+packages the extension for store submission.
+
+### Scripts
+
+| Script            | What it does                               |
+| ----------------- | ------------------------------------------ |
+| `npm run dev`     | Watch mode with hot reloading              |
+| `npm run build`   | Production build into `.output/chrome-mv3` |
+| `npm run zip`     | Zips the production build for store upload |
+| `npm run compile` | Typechecks the project (`tsc --noEmit`)    |
+| `npm run lint`    | ESLint                                     |
+| `npm test`        | Jest                                       |
+
+Firefox is not supported yet — see the tracking issue for the remaining work.

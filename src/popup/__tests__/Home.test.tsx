@@ -1,37 +1,17 @@
+import { browser } from '../../browser';
 import { render, screen, waitFor } from '../../../jest/test-utils';
 import Home from '../components/Home';
 import { STORAGE_KEYS } from '../../storageKeys';
 
 describe('<Home />', () => {
-  const setupChromeMock = (
-    hasKey = false,
-    includeListener = false
-  ): typeof chrome => {
-    const chromeMock = {
-      storage: {
-        local: {
-          get: jest
-            .fn()
-            .mockResolvedValue(
-              hasKey ? { [STORAGE_KEYS.OPENAI_API_KEY]: 'sk-test-key' } : {}
-            ),
-        },
-        onChanged: {
-          addListener: jest.fn(),
-          removeListener: jest.fn(),
-        },
-      },
-    };
-
-    if (includeListener) {
-      global.chrome = chromeMock as unknown as typeof chrome;
-    }
-
-    return chromeMock as unknown as typeof chrome;
+  const setupStorageMock = (hasKey = false): void => {
+    (browser.storage.local.get as jest.Mock).mockResolvedValue(
+      hasKey ? { [STORAGE_KEYS.OPENAI_API_KEY]: 'sk-test-key' } : {}
+    );
   };
 
   beforeEach(() => {
-    global.chrome = setupChromeMock();
+    setupStorageMock();
   });
 
   afterEach(() => {
@@ -59,7 +39,7 @@ describe('<Home />', () => {
   });
 
   test('hides warning when storage already has an API key', async () => {
-    global.chrome = setupChromeMock(true, true);
+    setupStorageMock(true);
 
     render(<Home hasApiKey={false} />);
 

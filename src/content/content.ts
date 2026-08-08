@@ -4,11 +4,12 @@
 // Document Object Model (DOM).
 // You can also pass information to the parent extension.
 
-// We execute this script by making an entry in manifest.json file
-// under `content_scripts` property
+// We execute this script by registering it in the WXT content-script entrypoint
+// at src/entrypoints/content.ts
 
 // For more information on Content Scripts,
 // See https://developer.chrome.com/extensions/content_scripts
+import { browser } from '../browser';
 import { getEditableElement } from './editableElements';
 
 const AI_COMMAND = '/ai ';
@@ -37,7 +38,7 @@ function handleKeyDown(event: KeyboardEvent): void {
   // All inference goes through the background service worker via a Port.
   // The background worker reads storage to decide which provider to use,
   // so the content script never needs to know which provider is active.
-  const port = chrome.runtime.connect({ name: 'inference' });
+  const port = browser.runtime.connect({ name: 'inference' });
 
   port.onMessage.addListener(
     (msg: { type: string; content?: string; message?: string }) => {
@@ -50,7 +51,7 @@ function handleKeyDown(event: KeyboardEvent): void {
       }
       if (msg.type === 'error') {
         port.disconnect();
-        chrome.runtime
+        browser.runtime
           .sendMessage({
             type: 'API_ERROR',
             message: msg.message ?? 'Unknown error',
@@ -74,4 +75,12 @@ function createPrompt(text: string) {
   return prompt;
 }
 
-document.addEventListener('keydown', handleKeyDown, true);
+/**
+ * Attaches the `/ai ` + Tab trigger to the page.
+ *
+ * Called from the WXT content-script entrypoint rather than at import time, so
+ * the module can be imported without side effects.
+ */
+export function initializeContentScript(): void {
+  document.addEventListener('keydown', handleKeyDown, true);
+}

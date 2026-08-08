@@ -25,6 +25,7 @@ import {
   OllamaModelAvailability,
   OllamaStatus,
 } from '../../content/ollama';
+import { browser } from '../../browser';
 import { Storage } from '../../storages';
 import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { STORAGE_KEYS as SK } from '../../storageKeys';
@@ -60,7 +61,7 @@ const LocalModelConfig = ({ storage }: Props) => {
       setIsChecking(true);
       try {
         const modelAvailability: OllamaModelAvailability =
-          await chrome.runtime.sendMessage({
+          await browser.runtime.sendMessage({
             type: 'ollama:check',
             endpoint: url,
           });
