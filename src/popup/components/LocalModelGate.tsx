@@ -17,7 +17,7 @@ const LocalModelGate = ({ storage }: Props) => {
         [STORAGE_KEYS.LOCAL_MODEL_ENABLED]: 'true',
       })
       .then(() => {
-        navigate('/local-model-config');
+        void navigate('/local-model-config');
       })
       .catch((error: Error) => {
         console.error(`Error acknowledging local model gate: ${error.message}`);
@@ -25,7 +25,7 @@ const LocalModelGate = ({ storage }: Props) => {
   };
 
   const handleNotForMe = () => {
-    navigate('/settings');
+    void navigate('/settings');
   };
 
   return (

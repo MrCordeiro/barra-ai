@@ -185,11 +185,11 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
 
     // Selecting a local model requires local setup first.
     if (!settings.ollama.endpoint && !gateAcknowledged) {
-      navigate('/local-model-gate');
+      void navigate('/local-model-gate');
       return;
     }
     if (!settings.ollama.endpoint) {
-      navigate('/local-model-config');
+      void navigate('/local-model-config');
       return;
     }
 
@@ -212,7 +212,7 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           title: 'Settings saved! 🎉',
           variant: 'top-accent',
         });
-        navigate('/');
+        void navigate('/');
       })
       .catch((error: Error) => {
         toast({
@@ -250,7 +250,9 @@ const Settings = ({ storage, showOnboarding = false }: Props) => {
           modelName={settings.modelName}
           localConnStatus={localConnStatus}
           onModelChange={handleModelChange}
-          onConfigureLocalModel={() => navigate('/local-model-config')}
+          onConfigureLocalModel={() => {
+            void navigate('/local-model-config');
+          }}
         />
 
         {selectedProvider && (

@@ -26,7 +26,9 @@ const NavBar = () => {
         <IconButton
           icon={<ArrowBackIcon />}
           variant={'ghost'}
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            void navigate(-1);
+          }}
           aria-label="Go back"
         />
       )}
@@ -35,7 +37,9 @@ const NavBar = () => {
         <IconButton
           icon={<SettingsIcon />}
           variant={'ghost'}
-          onClick={() => navigate('/settings')}
+          onClick={() => {
+            void navigate('/settings');
+          }}
           aria-label="Settings"
           isDisabled={location.pathname === '/settings'}
         />
