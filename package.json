@@ -5,13 +5,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "wxt",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "build:edge": "wxt build -b edge",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "jest --testTimeout=20000 --bail",
     "test-cov": "jest --coverage",
     "test-ci": "jest --ci --forceExit --reporters=default --reporters=jest-junit",
+    "zip": "wxt zip",
     "prepare": "husky"
   },
   "dependencies": {
@@ -49,7 +52,7 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5",
     "vite": "^8.1.2",
-    "vite-plugin-zip-pack": "^1.2.3"
+    "wxt": "^0.21.3"
   },
   "jest": {
     "preset": "ts-jest",

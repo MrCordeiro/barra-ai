@@ -69,4 +69,4 @@ Type `/ai ` followed by your prompt in **any input or text field**, press Tab, a
 3. Open chrome://extensions
 4. Check the Developer mode checkbox
 5. Click on the Load unpacked extension button
-6. Select the folder `barra-ai/dist`
+6. Select the folder `barra-ai/.output/chrome-mv3`
