@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { chromeStorage } from '../../storages';
+import { extensionStorage } from '../../storages';
 import { fetchGptResponse } from '../openai';
 import { makeStream } from '../../../jest/streamTestUtils';
 
@@ -9,7 +9,7 @@ function gptChunk(content: string): string {
 
 describe('fetchGptResponse', () => {
   beforeAll(() => {
-    jest.spyOn(chromeStorage, 'get').mockImplementation(() => {
+    jest.spyOn(extensionStorage, 'get').mockImplementation(() => {
       return Promise.resolve({
         openaiApiKey: 'test-api-key',
       });
@@ -31,7 +31,7 @@ describe('fetchGptResponse', () => {
     const response = await fetchGptResponse(
       'Write a LinkedIn post about AI',
       'gpt-4o-mini',
-      chromeStorage
+      extensionStorage
     );
 
     expect(response).toBe('A LinkedIn post about AI');
@@ -57,7 +57,7 @@ describe('fetchGptResponse', () => {
       })
     );
 
-    await fetchGptResponse('prompt', 'gpt-4o-mini', chromeStorage);
+    await fetchGptResponse('prompt', 'gpt-4o-mini', extensionStorage);
 
     const calls = (global.fetch as jest.Mock).mock.calls as [
       string,
@@ -80,7 +80,7 @@ describe('fetchGptResponse', () => {
     );
 
     const chunks: string[] = [];
-    await fetchGptResponse('prompt', 'gpt-4o-mini', chromeStorage, chunk =>
+    await fetchGptResponse('prompt', 'gpt-4o-mini', extensionStorage, chunk =>
       chunks.push(chunk)
     );
 
@@ -104,7 +104,7 @@ describe('fetchGptResponse', () => {
     );
 
     await expect(
-      fetchGptResponse(prompt, 'gpt-4o-mini', chromeStorage)
+      fetchGptResponse(prompt, 'gpt-4o-mini', extensionStorage)
     ).rejects.toThrow('Test error');
   });
 
@@ -118,7 +118,7 @@ describe('fetchGptResponse', () => {
     );
 
     await expect(
-      fetchGptResponse('prompt', 'gpt-4o-mini', chromeStorage)
+      fetchGptResponse('prompt', 'gpt-4o-mini', extensionStorage)
     ).rejects.toThrow('Service Unavailable');
   });
 
@@ -128,7 +128,7 @@ describe('fetchGptResponse', () => {
       .mockImplementationOnce(() => Promise.resolve({ ok: true, body: null }));
 
     await expect(
-      fetchGptResponse('prompt', 'gpt-4o-mini', chromeStorage)
+      fetchGptResponse('prompt', 'gpt-4o-mini', extensionStorage)
     ).rejects.toThrow('OpenAI response has no body');
   });
 });

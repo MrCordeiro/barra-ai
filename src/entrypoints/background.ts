@@ -1,5 +1,7 @@
 import { defineBackground } from 'wxt/utils/define-background';
 
-import '../background/background';
+import { initializeBackground } from '../background/background';
 
-export default defineBackground(() => undefined);
+export default defineBackground(() => {
+  initializeBackground();
+});

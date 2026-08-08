@@ -1,14 +1,5 @@
 'use strict';
-// Content script file will run in the context of web page.
-// With content script you can manipulate the web pages using
-// Document Object Model (DOM).
-// You can also pass information to the parent extension.
 
-// We execute this script by making an entry in manifest.json file
-// under `content_scripts` property
-
-// For more information on Content Scripts,
-// See https://developer.chrome.com/extensions/content_scripts
 import { getEditableElement } from './editableElements';
 
 const AI_COMMAND = '/ai ';
@@ -37,7 +28,7 @@ function handleKeyDown(event: KeyboardEvent): void {
   // All inference goes through the background service worker via a Port.
   // The background worker reads storage to decide which provider to use,
   // so the content script never needs to know which provider is active.
-  const port = chrome.runtime.connect({ name: 'inference' });
+  const port = browser.runtime.connect({ name: 'inference' });
 
   port.onMessage.addListener(
     (msg: { type: string; content?: string; message?: string }) => {
@@ -50,7 +41,7 @@ function handleKeyDown(event: KeyboardEvent): void {
       }
       if (msg.type === 'error') {
         port.disconnect();
-        chrome.runtime
+        browser.runtime
           .sendMessage({
             type: 'API_ERROR',
             message: msg.message ?? 'Unknown error',
@@ -74,4 +65,8 @@ function createPrompt(text: string) {
   return prompt;
 }
 
-document.addEventListener('keydown', handleKeyDown, true);
+export function initializeContentScript(): void {
+  // WXT loads this module from the content-script entrypoint, then we attach
+  // the page listener inside `main` so extension APIs only run in-browser.
+  document.addEventListener('keydown', handleKeyDown, true);
+}

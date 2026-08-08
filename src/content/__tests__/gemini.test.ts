@@ -1,4 +1,4 @@
-import { chromeStorage } from '../../storages';
+import { extensionStorage } from '../../storages';
 import { fetchGeminiResponse } from '../gemini';
 import { makeStream } from '../../../jest/streamTestUtils';
 
@@ -10,7 +10,7 @@ function geminiChunk(text: string): string {
 
 describe('fetchGeminiResponse', () => {
   beforeAll(() => {
-    jest.spyOn(chromeStorage, 'get').mockImplementation(() => {
+    jest.spyOn(extensionStorage, 'get').mockImplementation(() => {
       return Promise.resolve({
         geminiApiKey: 'test-gemini-key',
       });
@@ -35,7 +35,7 @@ describe('fetchGeminiResponse', () => {
     const response = await fetchGeminiResponse(
       'Write a LinkedIn post about AI',
       'gemini-2.0-flash',
-      chromeStorage
+      extensionStorage
     );
 
     expect(response).toBe('A LinkedIn post about AI');
@@ -57,7 +57,7 @@ describe('fetchGeminiResponse', () => {
       })
     );
 
-    await fetchGeminiResponse('prompt', 'gemini-2.0-flash', chromeStorage);
+    await fetchGeminiResponse('prompt', 'gemini-2.0-flash', extensionStorage);
 
     const calls = (global.fetch as jest.Mock).mock.calls as [
       string,
@@ -82,7 +82,7 @@ describe('fetchGeminiResponse', () => {
     await fetchGeminiResponse(
       'prompt',
       'gemini-2.0-flash',
-      chromeStorage,
+      extensionStorage,
       chunk => chunks.push(chunk)
     );
 
@@ -105,7 +105,7 @@ describe('fetchGeminiResponse', () => {
     );
 
     await expect(
-      fetchGeminiResponse('prompt', 'gemini-2.0-flash', chromeStorage)
+      fetchGeminiResponse('prompt', 'gemini-2.0-flash', extensionStorage)
     ).rejects.toThrow('Invalid API key');
   });
 
@@ -119,17 +119,17 @@ describe('fetchGeminiResponse', () => {
     );
 
     await expect(
-      fetchGeminiResponse('prompt', 'gemini-2.0-flash', chromeStorage)
+      fetchGeminiResponse('prompt', 'gemini-2.0-flash', extensionStorage)
     ).rejects.toThrow('Service Unavailable');
   });
 
   test('should throw when geminiApiKey is missing from storage', async () => {
     jest
-      .spyOn(chromeStorage, 'get')
+      .spyOn(extensionStorage, 'get')
       .mockImplementationOnce(() => Promise.resolve({}));
 
     await expect(
-      fetchGeminiResponse('prompt', 'gemini-2.0-flash', chromeStorage)
+      fetchGeminiResponse('prompt', 'gemini-2.0-flash', extensionStorage)
     ).rejects.toThrow('Gemini API Key is not set');
   });
 
@@ -139,7 +139,7 @@ describe('fetchGeminiResponse', () => {
       .mockImplementationOnce(() => Promise.resolve({ ok: true, body: null }));
 
     await expect(
-      fetchGeminiResponse('prompt', 'gemini-2.0-flash', chromeStorage)
+      fetchGeminiResponse('prompt', 'gemini-2.0-flash', extensionStorage)
     ).rejects.toThrow('Gemini response has no body');
   });
 
@@ -157,7 +157,7 @@ describe('fetchGeminiResponse', () => {
     const response = await fetchGeminiResponse(
       'prompt',
       'gemini-2.0-flash',
-      chromeStorage
+      extensionStorage
     );
     expect(response).toBe('only text');
   });

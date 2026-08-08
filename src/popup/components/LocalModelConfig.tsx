@@ -60,7 +60,7 @@ const LocalModelConfig = ({ storage }: Props) => {
       setIsChecking(true);
       try {
         const modelAvailability: OllamaModelAvailability =
-          await chrome.runtime.sendMessage({
+          await browser.runtime.sendMessage({
             type: 'ollama:check',
             endpoint: url,
           });

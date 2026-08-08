@@ -36,7 +36,7 @@ async function loadInferenceModule(options: {
     fetchAIResponse: options.fetchAIResponseMock ?? jest.fn(),
   }));
   jest.doMock('../../storages', () => ({
-    chromeStorage: {
+    extensionStorage: {
       get: jest.fn().mockResolvedValue(options.storageValues),
       addChangeListener: jest.fn(),
     },
@@ -52,7 +52,7 @@ describe('handleInferencePort', () => {
     jest.clearAllMocks();
     mockFetchAIResponse.mockReset();
     (
-      chrome.declarativeNetRequest.updateDynamicRules as jest.Mock
+      browser.declarativeNetRequest.updateDynamicRules as jest.Mock
     ).mockResolvedValue(undefined);
   });
 
@@ -74,7 +74,7 @@ describe('handleInferencePort', () => {
       },
     });
     const port = makePort();
-    handleInferencePort(port as unknown as chrome.runtime.Port);
+    handleInferencePort(port as never);
     port.trigger({ type: 'start', prompt: 'test prompt' });
 
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -96,7 +96,7 @@ describe('handleInferencePort', () => {
       },
     });
     const port = makePort();
-    handleInferencePort(port as unknown as chrome.runtime.Port);
+    handleInferencePort(port as never);
     port.trigger({ type: 'start', prompt: 'test' });
 
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -119,7 +119,7 @@ describe('handleInferencePort', () => {
       },
     });
     const port = makePort();
-    handleInferencePort(port as unknown as chrome.runtime.Port);
+    handleInferencePort(port as never);
     port.trigger({ type: 'start', prompt: 'test' });
 
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -144,7 +144,7 @@ describe('handleInferencePort', () => {
       },
     });
     const port = makePort();
-    handleInferencePort(port as unknown as chrome.runtime.Port);
+    handleInferencePort(port as never);
     port.trigger({ type: 'start', prompt: 'test' });
 
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -166,7 +166,7 @@ describe('handleInferencePort', () => {
       },
     });
     const port = makePort();
-    handleInferencePort(port as unknown as chrome.runtime.Port);
+    handleInferencePort(port as never);
     port.trigger({ type: 'start', prompt: 'test' });
 
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -186,7 +186,7 @@ describe('handleInferencePort', () => {
       },
     });
     const port = makePort();
-    handleInferencePort(port as unknown as chrome.runtime.Port);
+    handleInferencePort(port as never);
     port.trigger({ type: 'other', prompt: 'ignored' });
 
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -207,7 +207,7 @@ describe('handleInferencePort', () => {
       },
     });
     const port = makePort();
-    handleInferencePort(port as unknown as chrome.runtime.Port);
+    handleInferencePort(port as never);
     port.trigger({ type: 'start', prompt: 'write a tweet' });
 
     await new Promise(resolve => setTimeout(resolve, 10));
@@ -243,7 +243,7 @@ describe('updateCorsRule', () => {
 
   function expectCorsRuleApplied(origin: string) {
     expect(
-      chrome.declarativeNetRequest.updateDynamicRules
+      browser.declarativeNetRequest.updateDynamicRules
     ).toHaveBeenCalledWith({
       removeRuleIds: [1],
       addRules: [expectedCorsRule(origin)],
@@ -253,9 +253,9 @@ describe('updateCorsRule', () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
-    const updateDynamicRulesMock = chrome.declarativeNetRequest
+    const updateDynamicRulesMock = browser.declarativeNetRequest
       .updateDynamicRules as jest.MockedFunction<
-      typeof chrome.declarativeNetRequest.updateDynamicRules
+      typeof browser.declarativeNetRequest.updateDynamicRules
     >;
     updateDynamicRulesMock.mockResolvedValue(undefined);
   });
@@ -297,7 +297,7 @@ describe('updateCorsRule', () => {
     await updateCorsRule();
 
     expect(
-      chrome.declarativeNetRequest.updateDynamicRules
+      browser.declarativeNetRequest.updateDynamicRules
     ).toHaveBeenCalledWith({ removeRuleIds: [1], addRules: [] });
   });
 });

@@ -65,8 +65,9 @@ Type `/ai ` followed by your prompt in **any input or text field**, press Tab, a
 ## Development
 
 1. Fork the repository
-2. Run `npm run build`
-3. Open chrome://extensions
-4. Check the Developer mode checkbox
-5. Click on the Load unpacked extension button
-6. Select the folder `barra-ai/.output/chrome-mv3`
+2. Run `npm install`
+3. Run `npm run build`
+4. Open your browser's extensions page (for Chrome, `chrome://extensions`)
+5. Check the Developer mode checkbox
+6. Click on the Load unpacked extension button
+7. Select the folder `barra-ai/.output/chrome-mv3`

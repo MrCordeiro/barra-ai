@@ -1,6 +1,6 @@
 'use strict';
 
-import { Storage, chromeStorage } from '../storages';
+import { Storage, extensionStorage } from '../storages';
 import { extractErrorMessage } from './providerError';
 import { parseSSEStream } from './sseParser';
 import { STORAGE_KEYS } from '../storageKeys';
@@ -80,5 +80,5 @@ export async function fetchAnthropicAIResponse(
   prompt: string,
   modelName: string
 ): Promise<string> {
-  return fetchAnthropicResponse(prompt, modelName, chromeStorage);
+  return fetchAnthropicResponse(prompt, modelName, extensionStorage);
 }

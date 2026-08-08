@@ -46,7 +46,7 @@ interface Props {
 async function checkOllamaConn(
   endpoint: string
 ): Promise<OllamaModelAvailability> {
-  const status: OllamaModelAvailability = await chrome.runtime.sendMessage({
+  const status: OllamaModelAvailability = await browser.runtime.sendMessage({
     type: 'ollama:check',
     endpoint,
   });

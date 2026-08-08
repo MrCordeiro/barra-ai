@@ -3,11 +3,11 @@ import Home from '../components/Home';
 import { STORAGE_KEYS } from '../../storageKeys';
 
 describe('<Home />', () => {
-  const setupChromeMock = (
+  const setupBrowserMock = (
     hasKey = false,
     includeListener = false
-  ): typeof chrome => {
-    const chromeMock = {
+  ): typeof browser => {
+    const browserMock = {
       storage: {
         local: {
           get: jest
@@ -24,14 +24,16 @@ describe('<Home />', () => {
     };
 
     if (includeListener) {
-      global.chrome = chromeMock as unknown as typeof chrome;
+      global.browser = browserMock as unknown as typeof browser;
+      global.chrome = global.browser;
     }
 
-    return chromeMock as unknown as typeof chrome;
+    return browserMock as unknown as typeof browser;
   };
 
   beforeEach(() => {
-    global.chrome = setupChromeMock();
+    global.browser = setupBrowserMock();
+    global.chrome = global.browser;
   });
 
   afterEach(() => {
@@ -59,7 +61,8 @@ describe('<Home />', () => {
   });
 
   test('hides warning when storage already has an API key', async () => {
-    global.chrome = setupChromeMock(true, true);
+    global.browser = setupBrowserMock(true, true);
+    global.chrome = global.browser;
 
     render(<Home hasApiKey={false} />);
 

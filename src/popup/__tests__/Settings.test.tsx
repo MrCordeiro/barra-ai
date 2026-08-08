@@ -62,13 +62,13 @@ function mockOllamaCheck(
     status: OllamaStatus.NotRunning,
   }
 ) {
-  (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue(result);
+  (browser.runtime.sendMessage as jest.Mock).mockResolvedValue(result);
 }
 
 async function renderSettings(props: { showOnboarding?: boolean } = {}) {
   render(<Settings storage={mockStorage} {...props} />);
   await waitFor(() => {
-    expect(chrome.runtime.sendMessage).toHaveBeenCalled();
+    expect(browser.runtime.sendMessage).toHaveBeenCalled();
   });
 }
 

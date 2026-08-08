@@ -6,7 +6,7 @@ import NavBar from './components/NavBar';
 import Settings from './components/Settings';
 import LocalModelConfig from './components/LocalModelConfig';
 import LocalModelGate from './components/LocalModelGate';
-import { chromeStorage } from '../storages';
+import { extensionStorage } from '../storages';
 import { PROVIDER_API_KEYS, STORAGE_KEYS } from '../storageKeys';
 
 function App() {
@@ -14,7 +14,7 @@ function App() {
 
   // Show onboarding if no API key is configured and local model is not enabled
   useEffect(() => {
-    chromeStorage
+    extensionStorage
       .get([
         ...PROVIDER_API_KEYS,
         STORAGE_KEYS.MODEL_NAME,
@@ -40,22 +40,22 @@ function App() {
         <Route path="/" element={<Home hasApiKey={!showOnboarding} />} />
         <Route
           path="/settings"
-          element={<Settings storage={chromeStorage} />}
+          element={<Settings storage={extensionStorage} />}
         />
         <Route
           path="/local-model-config"
-          element={<LocalModelConfig storage={chromeStorage} />}
+          element={<LocalModelConfig storage={extensionStorage} />}
         />
         <Route
           path="/local-model-gate"
-          element={<LocalModelGate storage={chromeStorage} />}
+          element={<LocalModelGate storage={extensionStorage} />}
         />
         {/* Default route */}
         <Route
           path="*"
           element={
             showOnboarding ? (
-              <Settings storage={chromeStorage} showOnboarding />
+              <Settings storage={extensionStorage} showOnboarding />
             ) : (
               <Home hasApiKey />
             )

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { chromeStorage } from '../../storages';
+import { extensionStorage } from '../../storages';
 import { fetchAnthropicResponse } from '../anthropic';
 import { makeStream } from '../../../jest/streamTestUtils';
 
@@ -9,7 +9,7 @@ function anthropicChunk(text: string): string {
 
 describe('fetchAnthropicResponse', () => {
   beforeAll(() => {
-    jest.spyOn(chromeStorage, 'get').mockImplementation(() => {
+    jest.spyOn(extensionStorage, 'get').mockImplementation(() => {
       return Promise.resolve({
         anthropicApiKey: 'test-anthropic-key',
       });
@@ -35,7 +35,7 @@ describe('fetchAnthropicResponse', () => {
     const response = await fetchAnthropicResponse(
       'Write a LinkedIn post about AI',
       'claude-sonnet-4-6',
-      chromeStorage
+      extensionStorage
     );
 
     expect(response).toBe('A LinkedIn post about AI');
@@ -65,7 +65,11 @@ describe('fetchAnthropicResponse', () => {
       })
     );
 
-    await fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage);
+    await fetchAnthropicResponse(
+      'prompt',
+      'claude-sonnet-4-6',
+      extensionStorage
+    );
 
     const calls = (global.fetch as jest.Mock).mock.calls as [
       string,
@@ -91,7 +95,7 @@ describe('fetchAnthropicResponse', () => {
     await fetchAnthropicResponse(
       'prompt',
       'claude-sonnet-4-6',
-      chromeStorage,
+      extensionStorage,
       chunk => chunks.push(chunk)
     );
 
@@ -111,7 +115,7 @@ describe('fetchAnthropicResponse', () => {
     );
 
     await expect(
-      fetchAnthropicResponse(prompt, 'claude-sonnet-4-6', chromeStorage)
+      fetchAnthropicResponse(prompt, 'claude-sonnet-4-6', extensionStorage)
     ).rejects.toThrow('Invalid API key');
   });
 
@@ -125,17 +129,17 @@ describe('fetchAnthropicResponse', () => {
     );
 
     await expect(
-      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
+      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', extensionStorage)
     ).rejects.toThrow('Service Unavailable');
   });
 
   test('should throw when anthropicApiKey is missing from storage', async () => {
     jest
-      .spyOn(chromeStorage, 'get')
+      .spyOn(extensionStorage, 'get')
       .mockImplementationOnce(() => Promise.resolve({}));
 
     await expect(
-      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
+      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', extensionStorage)
     ).rejects.toThrow('Anthropic API Key is not set');
   });
 
@@ -145,7 +149,7 @@ describe('fetchAnthropicResponse', () => {
       .mockImplementationOnce(() => Promise.resolve({ ok: true, body: null }));
 
     await expect(
-      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', chromeStorage)
+      fetchAnthropicResponse('prompt', 'claude-sonnet-4-6', extensionStorage)
     ).rejects.toThrow('Anthropic response has no body');
   });
 });

@@ -1,9 +1,11 @@
+import type { Browser } from 'wxt/browser';
+
 /**
  * Callback for storage change events.
  */
 export type StorageChangeListener = (
-  changes: Record<string, chrome.storage.StorageChange>,
-  areaName: chrome.storage.AreaName
+  changes: Record<string, Browser.storage.StorageChange>,
+  areaName: Browser.storage.AreaName
 ) => void;
 
 /**
@@ -38,12 +40,12 @@ export interface Storage {
 }
 
 /* istanbul ignore next */
-export const chromeStorage: Storage = {
+export const extensionStorage: Storage = {
   get: (keys: string | string[] | null = null) =>
-    chrome.storage.local.get(keys),
-  set: (items: Record<string, string>) => chrome.storage.local.set(items),
+    browser.storage.local.get(keys),
+  set: (items: Record<string, string>) => browser.storage.local.set(items),
   addChangeListener: (listener: StorageChangeListener) =>
-    chrome.storage.onChanged.addListener(listener),
+    browser.storage.onChanged.addListener(listener),
   removeChangeListener: (listener: StorageChangeListener) =>
-    chrome.storage.onChanged.removeListener(listener),
+    browser.storage.onChanged.removeListener(listener),
 };

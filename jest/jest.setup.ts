@@ -8,9 +8,9 @@ g.TextEncoder ??= TextEncoder;
 g.TextDecoder ??= TextDecoder;
 g.ReadableStream ??= ReadableStream;
 
-// Minimal Chrome extension API stub for popup/background unit tests.
+// Minimal browser-extension API stub for popup/background unit tests.
 // Individual tests can override specific methods with jest.fn() / jest.spyOn().
-g.chrome = {
+g.browser = {
   runtime: {
     sendMessage: jest.fn().mockResolvedValue({ type: 'not-running' }),
     connect: jest.fn(),
@@ -31,3 +31,4 @@ g.chrome = {
     updateDynamicRules: jest.fn().mockResolvedValue(undefined),
   },
 };
+g.chrome = g.browser;

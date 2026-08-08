@@ -1,4 +1,5 @@
 {
+  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -21,6 +22,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "jest/**/*.ts", "jest/**/*.tsx"],
+  "include": ["src", "jest/**/*.ts", "jest/**/*.tsx", ".wxt/wxt.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

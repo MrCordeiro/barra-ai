@@ -1,6 +1,6 @@
 'use strict';
 
-import { Storage, chromeStorage } from '../storages';
+import { Storage, extensionStorage } from '../storages';
 import { extractErrorMessage } from './providerError';
 import { parseSSEStream } from './sseParser';
 import { STORAGE_KEYS } from '../storageKeys';
@@ -78,5 +78,5 @@ export async function fetchOpenAIResponse(
   prompt: string,
   modelName: string
 ): Promise<string> {
-  return fetchGptResponse(prompt, modelName, chromeStorage);
+  return fetchGptResponse(prompt, modelName, extensionStorage);
 }

@@ -8,13 +8,13 @@ const mockStorage = createMockStorage();
 
 /** Set what the background connection check will return. */
 function mockCheck(status: OllamaModelAvailability) {
-  (chrome.runtime.sendMessage as jest.Mock).mockResolvedValue(status);
+  (browser.runtime.sendMessage as jest.Mock).mockResolvedValue(status);
 }
 
 async function renderLocalModelConfig() {
   render(<LocalModelConfig storage={mockStorage} />);
   await waitFor(() => {
-    expect(chrome.runtime.sendMessage).toHaveBeenCalled();
+    expect(browser.runtime.sendMessage).toHaveBeenCalled();
   });
 }
 
@@ -243,7 +243,7 @@ describe('<LocalModelConfig />', () => {
     fireEvent.click(screen.getByRole('button', { name: /Check again/i }));
 
     await waitFor(() => {
-      expect(chrome.runtime.sendMessage).toHaveBeenCalledTimes(2);
+      expect(browser.runtime.sendMessage).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -251,7 +251,7 @@ describe('<LocalModelConfig />', () => {
     await renderLocalModelConfig();
 
     await waitFor(() => {
-      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect(browser.runtime.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'ollama:check' })
       );
     });

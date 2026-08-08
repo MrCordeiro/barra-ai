@@ -58,7 +58,7 @@ describe('fetchAIResponse routing (USE_MOCK=false)', () => {
     }
   ): Promise<typeof import('../ai')> {
     jest.doMock('../../storages', () => ({
-      chromeStorage: {
+      extensionStorage: {
         get: jest.fn().mockResolvedValue({
           modelName,
           localModelEndpoint: localSettings?.localModelEndpoint ?? '',

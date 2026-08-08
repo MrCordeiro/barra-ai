@@ -19,12 +19,12 @@ export function triggerNotification(
   priority: Priority = Priority.DEFAULT
 ): void {
   // istanbul ignore next
-  if (!chrome.notifications) {
+  if (!browser.notifications) {
     console.error('Notifications API not available');
     return;
   }
 
-  chrome.notifications.create({
+  void browser.notifications.create({
     type: 'basic',
     iconUrl: 'icons/icon_128.png',
     title: 'Barra/AI',

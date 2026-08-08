@@ -10,7 +10,7 @@ import {
   Link,
 } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
-import { chromeStorage, type StorageChangeListener } from '../../storages';
+import { extensionStorage, type StorageChangeListener } from '../../storages';
 import { PROVIDER_API_KEYS, STORAGE_KEYS } from '../../storageKeys';
 
 interface Props {
@@ -33,7 +33,7 @@ const Home = ({ hasApiKey = true }: Props) => {
       ];
 
       const checkStorage = () => {
-        chromeStorage
+        extensionStorage
           .get(watchedKeys)
           .then(result => {
             const localEnabled =
@@ -58,9 +58,9 @@ const Home = ({ hasApiKey = true }: Props) => {
         checkStorage();
       };
 
-      chromeStorage.addChangeListener(handleStorageChange);
+      extensionStorage.addChangeListener(handleStorageChange);
       return () => {
-        chromeStorage.removeChangeListener(handleStorageChange);
+        extensionStorage.removeChangeListener(handleStorageChange);
       };
     },
     [hasApiKey]

@@ -1,6 +1,6 @@
 'use strict';
 
-import { chromeStorage, Storage } from '../storages';
+import { extensionStorage, Storage } from '../storages';
 import {
   DEFAULT_LLM_MODEL,
   getProviderForModel,
@@ -57,7 +57,7 @@ export async function fetchAIResponse(
     return response;
   }
 
-  const stored = await chromeStorage.get([
+  const stored = await extensionStorage.get([
     ...MODEL_STORAGE_KEYS,
     ...PROVIDER_API_KEYS,
   ]);
@@ -102,7 +102,7 @@ export async function fetchAIResponse(
   return providerHandlers[provider](
     prompt,
     resolvedModel,
-    chromeStorage,
+    extensionStorage,
     onChunk
   );
 }
