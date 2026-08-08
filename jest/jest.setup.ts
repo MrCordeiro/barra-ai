@@ -31,4 +31,10 @@ g.browser = {
     updateDynamicRules: jest.fn().mockResolvedValue(undefined),
   },
 };
-g.chrome = g.browser;
+Object.defineProperty(g, 'chrome', {
+  get: () => g.browser,
+  set: value => {
+    g.browser = value;
+  },
+  configurable: true,
+});
