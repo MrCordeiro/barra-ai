@@ -1,6 +1,6 @@
 {
   "name": "barra-ai",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Barra/AI - summon AI with a slash",
   "private": true,
   "type": "module",

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-08-09
+
+### Added
+
+- **OpenAI GPT-5.6 family**: `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna` (Sol / Terra / Luna tiers).
+- **Anthropic Claude 5 family**: `claude-fable-5`, `claude-opus-5`, `claude-sonnet-5`, and `claude-haiku-4-5-20251001`.
+- **Google Gemini 3 family**: `gemini-3.1-pro-preview`, `gemini-3.5-flash`, and `gemini-3.5-flash-lite`.
+- **Google Gemini 2.5 Flash variants**: `gemini-2.5-flash` and `gemini-2.5-flash-lite`.
+
+### Changed
+
+- Default model changed from `gpt-4o-mini` to `gpt-5.6-terra`.
+- Removed `gpt-5.4-mini` and `gpt-5.4-nano` (superseded by the GPT-5.6 family).
+- Removed `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-1.5-pro`, and `gemini-1.5-flash`.
+
 ## [1.6.0] - 2026-08-08
 
 ### Changed
